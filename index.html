@@ -710,10 +710,10 @@ function parsePlayingXIText(text) {
         const rotation = {};
         const rotationLines = rotationText.split("\n");
         rotationLines.forEach((raw) => {
-            const m = raw.trim().match(/^#?\s*(\d+)\s*\(([^)]+)\)\s*:\s*(.+)$/);
+            const m = raw.trim().match(/^#?\s*(\d+)\s*(?:\(([^)]+)\)|([^:]+?))\s*:\s*(.+)$/);
             if (!m)
                 return;
-            const playerName = m[2].trim();
+            const playerName = (m[2] || m[3] || "").trim();
             const player = players.find((p) => p.name.toLowerCase() === playerName.toLowerCase()) || players.find((p) => p.name.toLowerCase().includes(playerName.toLowerCase()));
             const overs = m[3].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
             if (!player) {
@@ -833,7 +833,7 @@ function PlayersTab({ data, update }) {
                 " and ",
                 React.createElement("b", null, "Bowling Type - Fast / Fast-Medium / Medium-Fast / Medium / Off Spin / Leg Spin / Left-Arm Orthodox / Left-Arm Wrist Spin"),
                 "."),
-            React.createElement("textarea", { value: bulkText, onChange: (e) => setBulkText(e.target.value), placeholder: '[GT] PLAYING XI\n\n1. Fin Allen ( WK )\n   Bat Avg - 34.90 | SR - 214.11\n...\n\n[GT] ROTATION LOCK |\n#7 (Mitchell Santner): 7 , 9 , 11 , 13', style: { ...input, minHeight: 180, resize: "vertical", lineHeight: 1.45, fontFamily: mono, fontSize: 11 } }),
+            React.createElement("textarea", { value: bulkText, onChange: (e) => setBulkText(e.target.value), placeholder: '[GT] PLAYING XI\n\n1. Fin Allen ( WK )\n   Bat Avg - 34.90 | SR - 214.11\n...\n\n[GT] BOWLING ROTATION |\n#7 Mitchell Santner: 7 , 9 , 11 , 13', style: { ...input, minHeight: 180, resize: "vertical", lineHeight: 1.45, fontFamily: mono, fontSize: 11 } }),
             React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginTop: 9, flexWrap: "wrap" } },
                 React.createElement("button", { onClick: importPlayingXIs, disabled: !bulkText.trim(), style: { ...btnPrimary, opacity: bulkText.trim() ? 1 : 0.4 } },
                     React.createElement(Users, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
