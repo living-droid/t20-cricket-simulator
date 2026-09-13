@@ -508,11 +508,30 @@ function computeRecords(matches) {
 // ============================================================================
 const STORAGE_KEY = "cricket-league-data-v2";
 const EMPTY_DATA = { players: [], pitches: [], teams: [], matches: [], tournaments: [] };
+function normalizeStoredRotations(data) {
+    const players = data.players || [];
+    const byId = new Map(players.map(p => [p.id, p]));
+    const byName = new Map(players.map(p => [String(p.name || "").trim().toLowerCase(), p.id]));
+    const teams = (data.teams || []).map(team => {
+        const source = team.bowlingRotation || team.rotation || {};
+        const normalized = {};
+        Object.entries(source).forEach(([over, value]) => {
+            if (!value) return;
+            if (byId.has(value)) normalized[over] = value;
+            else {
+                const id = byName.get(String(value).trim().toLowerCase());
+                if (id) normalized[over] = id;
+            }
+        });
+        return { ...team, bowlingRotation: normalized };
+    });
+    return { ...data, teams };
+}
 async function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw)
-            return { ...EMPTY_DATA, ...JSON.parse(raw) };
+            return normalizeStoredRotations({ ...EMPTY_DATA, ...JSON.parse(raw) });
         return EMPTY_DATA;
     }
     catch (e) {
