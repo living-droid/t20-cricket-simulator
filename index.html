@@ -1450,6 +1450,52 @@ function generateKnockoutInitial(teamIds) {
 function getWinnersForFixtures(fixtures, matches) {
     return fixtures.map((f) => getLatestFixtureMatch(matches, f.id)?.winnerId).filter(Boolean);
 }
+function playoffConfigForCount(n) {
+    if (n === 7 || n === 8) return { fixtures: [
+        { teamARef: "RANK2", teamBRef: "RANK3", round: "Qualifier" },
+        { teamARef: "RANK1", teamBRef: "WINNER:Qualifier", round: "Final" },
+    ]};
+    if (n === 9 || n === 10) return { fixtures: [
+        { teamARef: "RANK1", teamBRef: "RANK2", round: "Qualifier 1" },
+        { teamARef: "RANK3", teamBRef: "RANK4", round: "Eliminator" },
+        { teamARef: "LOSER:Qualifier 1", teamBRef: "WINNER:Eliminator", round: "Qualifier 2" },
+        { teamARef: "WINNER:Qualifier 1", teamBRef: "WINNER:Qualifier 2", round: "Final" },
+    ]};
+    return null;
+}
+function makeAutoPlayoffFixtures(teamCount, leagueMatchCount) {
+    const cfg = playoffConfigForCount(teamCount);
+    if (!cfg) return [];
+    return cfg.fixtures.map((f, i) => ({ id: nid("fx"), teamAId: null, teamBId: null, teamARef: f.teamARef, teamBRef: f.teamBRef, round: f.round, matchNo: leagueMatchCount + i + 1, played: false }));
+}
+function playoffTeamId(ref, tn, matches, teams) {
+    if (!ref) return null;
+    if (ref.startsWith("RANK")) {
+        const mainDone = (tn.fixtures || []).length > 0 && (tn.fixtures || []).every(f => !!getLatestFixtureMatch(matches, f.id));
+        if (!mainDone) return null;
+        return computePointsTable(tn, matches, teams)[Number(ref.slice(4)) - 1]?.teamId || null;
+    }
+    const m = ref.match(/^(WINNER|LOSER):(.+)$/);
+    if (!m) return null;
+    const fx = (tn.playoffFixtures || []).find(f => f.round === m[2]);
+    const result = fx ? getLatestFixtureMatch(matches, fx.id) : null;
+    if (!result || !result.winnerId) return null;
+    return m[1] === "WINNER" ? result.winnerId : (result.teamAId === result.winnerId ? result.teamBId : result.teamAId);
+}
+function resolvePlayoffFixture(fx, tn, matches, teams) {
+    if (!fx?.teamARef && !fx?.teamBRef) return fx;
+    return { ...fx, teamAId: playoffTeamId(fx.teamARef, tn, matches, teams), teamBId: playoffTeamId(fx.teamBRef, tn, matches, teams) };
+}
+function migrateAutoPlayoffs(data) {
+    let changed = false;
+    const tournaments = data.tournaments.map(tn => {
+        const eligible = (tn.format === "double-round-robin" || tn.format === "round-robin-playoffs") && [7,8,9,10].includes((tn.teamIds || []).length);
+        if (!eligible || (tn.playoffFixtures || []).length) return tn;
+        changed = true;
+        return { ...tn, playoffFixtures: makeAutoPlayoffFixtures(tn.teamIds.length, (tn.fixtures || []).length) };
+    });
+    return changed ? { ...data, tournaments } : data;
+}
 function generateNextKnockoutRound(tn, matches) {
     const current = tn.knockoutStage || "Preliminary Round";
     const currentFixtures = (tn.playoffFixtures || []).filter((f) => f.round === current);
@@ -1489,6 +1535,8 @@ function TournamentsTab({ data, update, onPlayFixture }) {
             fixtures = generateDoubleRoundRobin(selectedTeams);
         if (format === "round-robin-playoffs")
             fixtures = generateRoundRobin(selectedTeams);
+        if ((format === "double-round-robin" || format === "round-robin-playoffs") && [7,8,9,10].includes(selectedTeams.length))
+            playoffFixtures = makeAutoPlayoffFixtures(selectedTeams.length, fixtures.length);
         if (format === "knockout") {
             const k = generateKnockoutInitial(selectedTeams);
             playoffFixtures = k.fixtures;
@@ -1560,8 +1608,8 @@ function TournamentsTab({ data, update, onPlayFixture }) {
     const groupMainPlayed = allMainPlayed;
     const formatLabel = (f) => ({
         "round-robin": "Round robin",
-        "double-round-robin": "Double round robin",
-        "round-robin-playoffs": "Round robin + top 4 playoffs",
+        "double-round-robin": "Double round robin + playoffs",
+        "round-robin-playoffs": "Round robin + playoffs",
         "knockout": "Single elimination knockout",
         "groups-knockout": "Groups + knockout",
     }[f] || f);
@@ -1573,8 +1621,8 @@ function TournamentsTab({ data, update, onPlayFixture }) {
             React.createElement("input", { placeholder: "Tournament name", style: { ...input, marginBottom: 8 }, value: name, onChange: (e) => setName(e.target.value) }),
             React.createElement("select", { style: { ...input, marginBottom: 11 }, value: format, onChange: (e) => setFormat(e.target.value) },
                 React.createElement("option", { value: "round-robin" }, "Round robin only"),
-                React.createElement("option", { value: "double-round-robin" }, "Double round robin"),
-                React.createElement("option", { value: "round-robin-playoffs" }, "Round robin + top-4 playoffs"),
+                React.createElement("option", { value: "double-round-robin" }, "Double round robin + playoffs"),
+                React.createElement("option", { value: "round-robin-playoffs" }, "Round robin + playoffs"),
                 React.createElement("option", { value: "groups-knockout" }, "Groups + knockout"),
                 React.createElement("option", { value: "knockout" }, "Single elimination knockout")),
             React.createElement("div", { style: { ...eyebrow, marginBottom: 6 } }, "Participating teams \u00B7 maximum 10"),
@@ -1666,14 +1714,14 @@ function TournamentsTab({ data, update, onPlayFixture }) {
             tournament.format !== "knockout" && React.createElement("div", { style: { marginTop: 18 } },
                 tournament.format === "round-robin-playoffs" && allMainPlayed && (tournament.playoffFixtures || []).length === 0 && React.createElement("button", { onClick: () => generateTop4Playoffs(tournament), style: btn }, "Generate Semi Finals (top 4)"),
                 tournament.format === "groups-knockout" && groupMainPlayed && (tournament.playoffFixtures || []).length === 0 && React.createElement("button", { onClick: () => generateGroupPlayoffs(tournament), style: btn }, "Generate Semi Finals"),
-                (tournament.playoffFixtures || []).map((fx) => { const played = data.matches.find(m => m.fixtureId === fx.id); const a = data.teams.find(t => t.id === fx.teamAId)?.name || "?", b = data.teams.find(t => t.id === fx.teamBId)?.name || "?"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
+                (tournament.playoffFixtures || []).map((fx) => { const played = data.matches.find(m => m.fixtureId === fx.id); const a = fx.teamAId ? (data.teams.find(t => t.id === fx.teamAId)?.name || "?") : "NOT DECIDED YET", b = fx.teamBId ? (data.teams.find(t => t.id === fx.teamBId)?.name || "?") : "NOT DECIDED YET"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
                     React.createElement("span", null,
                         React.createElement("b", { style: { color: C.accent } }, fx.round),
                         " \u00B7 ",
                         a,
                         " vs ",
                         b),
-                    played ? React.createElement("span", { style: { color: C.accent2, fontWeight: 700 } }, played.margin) : React.createElement("button", { onClick: () => onPlayFixture({ teamAId: fx.teamAId, teamBId: fx.teamBId, tournamentId: tournament.id, fixtureId: fx.id }), style: btn }, "Play")); }),
+                    played ? React.createElement("span", { style: { color: C.accent2, fontWeight: 700 } }, played.margin) : (fx.teamAId && fx.teamBId && allMainPlayed ? React.createElement("button", { onClick: () => onPlayFixture({ teamAId: fx.teamAId, teamBId: fx.teamBId, tournamentId: tournament.id, fixtureId: fx.id }), style: btn }, "Play") : React.createElement("span", { style: { color: C.textFaint, fontSize: 10 } }, "WAITING"))); }),
                 (tournament.playoffFixtures || []).filter(f => f.round.startsWith("Semi")).length === 2 && (tournament.playoffFixtures || []).filter(f => f.round.startsWith("Semi")).every(f => data.matches.some(m => m.fixtureId === f.id)) && !(tournament.playoffFixtures || []).some(f => f.round === "Final") && React.createElement("button", { onClick: () => generateFinal(tournament), style: { ...btn, marginTop: 10 } }, "Generate Final"),
                 (tournament.playoffFixtures || []).some(f => f.round === "Final") && data.matches.some(m => m.fixtureId === (tournament.playoffFixtures || []).find(f => f.round === "Final").id) && React.createElement("div", { style: { marginTop: 14, textAlign: "center", fontFamily: serif, fontSize: 17, color: C.accent, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 } },
                     React.createElement(Trophy, { size: 18 }),
@@ -1692,7 +1740,8 @@ function ScheduleTab({ data, onPlayFixture }) {
         return React.createElement("div", { style: card },
             React.createElement(EmptyState, { icon: Clock, text: "Create a tournament to generate the league schedule." }));
     const t = tournaments.find((x) => x.id === selectedId) || tournaments[0];
-    const allFixtures = [...(t.fixtures || []), ...(t.playoffFixtures || [])];
+    const allPlayoffs = (t.playoffFixtures || []).map(f => resolvePlayoffFixture(f, t, data.matches, data.teams));
+    const allFixtures = [...(t.fixtures || []), ...allPlayoffs];
     const playedCount = allFixtures.filter((f) => !!getLatestFixtureMatch(data.matches, f.id)).length;
     return React.createElement("div", { style: card },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" } },
@@ -1705,27 +1754,10 @@ function ScheduleTab({ data, onPlayFixture }) {
                 "/",
                 allFixtures.length,
                 " played")),
-        allFixtures.map((fx, i) => { const played = getLatestFixtureMatch(data.matches, fx.id); const a = data.teams.find(x => x.id === fx.teamAId)?.name || "?"; const b = data.teams.find(x => x.id === fx.teamBId)?.name || "?"; return React.createElement("div", { key: fx.id, style: { display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 12, alignItems: "center", padding: "12px 4px", borderBottom: `1px solid ${C.lineSoft}` } },
-            React.createElement("span", { style: { ...eyebrow, color: C.accent } },
-                "#",
-                fx.matchNo || i + 1),
-            React.createElement("span", null,
-                React.createElement("b", null, a),
-                " ",
-                React.createElement("span", { style: { color: C.textFaint } }, "vs"),
-                " ",
-                React.createElement("b", null, b),
-                React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginTop: 3 } }, fx.round)),
-            played ? React.createElement("span", { style: { color: C.accent2, fontSize: 11, fontWeight: 700 } },
-                played.inn1.totalRuns,
-                "/",
-                played.inn1.totalWkts,
-                " \u2014 ",
-                played.inn2.totalRuns,
-                "/",
-                played.inn2.totalWkts,
-                " ",
-                played.resimulated && React.createElement(Badge, { color: C.red }, "RESIMULATED")) : React.createElement("button", { onClick: () => onPlayFixture({ teamAId: fx.teamAId, teamBId: fx.teamBId, tournamentId: t.id, fixtureId: fx.id }), style: btn }, "Play")); }));
+        allFixtures.map((fx, i) => { const played = getLatestFixtureMatch(data.matches, fx.id); const a = fx.teamAId ? (data.teams.find(x => x.id === fx.teamAId)?.name || "?") : "NOT DECIDED YET"; const b = fx.teamBId ? (data.teams.find(x => x.id === fx.teamBId)?.name || "?") : "NOT DECIDED YET"; const isPlayoff = !!fx.teamARef || !!fx.teamBRef; const ready = !!fx.teamAId && !!fx.teamBId; return React.createElement("div", { key: fx.id, style: { display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 12, alignItems: "center", padding: "12px 4px", borderBottom: `1px solid ${C.lineSoft}` } },
+            React.createElement("span", { style: { ...eyebrow, color: C.accent } }, "#", fx.matchNo || i + 1),
+            React.createElement("span", null, React.createElement("b", null, a), " ", React.createElement("span", { style: { color: C.textFaint } }, "vs"), " ", React.createElement("b", null, b), React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginTop: 3 } }, fx.round)),
+            played ? React.createElement("span", { style: { color: C.accent2, fontSize: 11, fontWeight: 700 } }, played.inn1.totalRuns, "/", played.inn1.totalWkts, " — ", played.inn2.totalRuns, "/", played.inn2.totalWkts, " ", played.resimulated && React.createElement(Badge, { color: C.red }, "RESIMULATED")) : ready ? React.createElement("button", { onClick: () => onPlayFixture({ teamAId: fx.teamAId, teamBId: fx.teamBId, tournamentId: t.id, fixtureId: fx.id }), style: btn }, "Play") : React.createElement("span", { style: { color: C.textFaint, fontSize: 10, fontWeight: 700 } }, isPlayoff ? "WAITING" : "—")); }))
 }
 // ============================================================================
 // RECORDS TAB
@@ -1811,7 +1843,7 @@ function App() {
     const [tab, setTab] = useState("players");
     const [prefill, setPrefill] = useState(null);
     const [saveState, setSaveState] = useState("idle");
-    useEffect(() => { loadData().then(setData); }, []);
+    useEffect(() => { loadData().then(raw => { const migrated = migrateAutoPlayoffs(raw); setData(migrated); if (migrated !== raw) saveData(migrated); }); }, []);
     const update = useCallback((newData) => {
         setData(newData);
         setSaveState("saving");
