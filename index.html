@@ -639,7 +639,7 @@ function parsePlayingXIText(text) {
         if (!header)
             return;
         const teamName = header[1].trim();
-        const rotationMarker = block.search(/^\s*\[[^\]]+\]\s*ROTATION\s+LOCK\s*\|?\s*$/im);
+        const rotationMarker = block.search(/^\s*\[[^\]]+\]\s*(?:ROTATION\s+LOCK|BOWLING\s+ROTATION)\s*\|?\s*$/im);
         const xiText = rotationMarker >= 0 ? block.slice(header.index + header[0].length, rotationMarker) : block.slice(header.index + header[0].length);
         const rotationText = rotationMarker >= 0 ? block.slice(rotationMarker) : "";
         const lines = xiText.split("\n");
@@ -1306,8 +1306,8 @@ function PlayMatchTab({ data, update, prefill }) {
             const teamRotationB = teamB.bowlingRotation || teamB.rotation || {};
             const effRotA = completeRotation(teamRotationA, bowlersA);
             const effRotB = completeRotation(teamRotationB, bowlersB);
-            Object.entries(rotA).forEach(([over, id]) => { if (id && !teamRotationA[over]) effRotA[over] = id; });
-            Object.entries(rotB).forEach(([over, id]) => { if (id && !teamRotationB[over]) effRotB[over] = id; });
+            Object.entries(rotA).forEach(([over, id]) => { if (id) effRotA[over] = id; });
+            Object.entries(rotB).forEach(([over, id]) => { if (id) effRotB[over] = id; });
             const r = playMatch(teamA, teamB, pitch, effRotA, effRotB, playerLookup);
             setResult(r);
             const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
@@ -1362,7 +1362,7 @@ function PlayMatchTab({ data, update, prefill }) {
                 React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamB.name}: uploaded rotation is preloaded automatically. You can manually change ANY over below.`),
                 React.createElement(RotationGrid, { label: `${teamB.name} bowls at ${teamA.name}`, bowlers: bowlersB, rotation: rotB, setRotation: setRotB }),
                 React.createElement(RotationGrid, { label: `${teamA.name} bowls at ${teamB.name}`, bowlers: bowlersA, rotation: rotA, setRotation: setRotA }),
-                React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 14 } }, "Uploaded rotation is loaded first and followed exactly. Any dropdown change is a manual override for this match only. Missing overs are auto-filled only from players marked as bowlers. Non-bowlers can never be assigned."))),
+                React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 14 } }, "Uploaded BOWLING ROTATION is loaded first and followed exactly. Any dropdown change is a manual override for this match only. Missing overs are auto-filled only from players marked as bowlers. Non-bowlers can never be assigned."))),
             React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 10 } }, "Engine uses supplied statistics. Bowlers without batting data receive a modest automatic tailender batting profile; no elite/god-tier batting rating is created."),
             React.createElement("button", { onClick: sim, disabled: !teamA || !teamB, style: { ...btnPrimary, opacity: !teamA || !teamB ? 0.35 : 1, padding: "10px 26px" } },
                 React.createElement(PlayCircle, { size: 14, style: { verticalAlign: -2, marginRight: 5 } }),
