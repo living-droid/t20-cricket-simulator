@@ -1255,11 +1255,11 @@ function PlayMatchTab({ data, update, prefill }) {
     useEffect(() => {
         if (teamA?.homeGroundId && !pitchId)
             setPitchId(teamA.homeGroundId);
-        setRotA(teamA?.bowlingRotation || {});
+        setRotA(teamA?.bowlingRotation || teamA?.rotation || {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [teamAId]);
     useEffect(() => {
-        setRotB(teamB?.bowlingRotation || {});
+        setRotB(teamB?.bowlingRotation || teamB?.rotation || {});
     }, [teamBId]);
     const pitch = data.pitches.find((p) => p.id === pitchId) || data.pitches[0];
     const playerLookup = Object.fromEntries(data.players.map((p) => [p.id, p]));
@@ -1272,8 +1272,8 @@ function PlayMatchTab({ data, update, prefill }) {
             const issues = [...getTeamSimulationIssues(teamA, playerLookup), ...getTeamSimulationIssues(teamB, playerLookup)];
             if (issues.length)
                 throw new Error(issues.slice(0, 4).join("\n"));
-            const teamRotationA = teamA.bowlingRotation || {};
-            const teamRotationB = teamB.bowlingRotation || {};
+            const teamRotationA = teamA.bowlingRotation || teamA.rotation || {};
+            const teamRotationB = teamB.bowlingRotation || teamB.rotation || {};
             const effRotA = completeRotation(teamRotationA, bowlersA);
             const effRotB = completeRotation(teamRotationB, bowlersB);
             Object.entries(rotA).forEach(([over, id]) => { if (id && !teamRotationA[over]) effRotA[over] = id; });
@@ -1328,12 +1328,8 @@ function PlayMatchTab({ data, update, prefill }) {
                 " Playing at ",
                 teamA.groundName || `${teamA.name}'s home ground`)),
             teamA && teamB && (React.createElement(React.Fragment, null,
-                hasFullRotation(teamB?.bowlingRotation)
-                    ? React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamB.name} uploaded bowling rotation loaded automatically — Overs 1–20`)
-                    : React.createElement(RotationGrid, { label: `${teamB.name} bowls at ${teamA.name}`, bowlers: bowlersB, rotation: rotB, setRotation: setRotB, lockedOvers: teamB?.bowlingRotation || {} }),
-                hasFullRotation(teamA?.bowlingRotation)
-                    ? React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamA.name} uploaded bowling rotation loaded automatically — Overs 1–20`)
-                    : React.createElement(RotationGrid, { label: `${teamA.name} bowls at ${teamB.name}`, bowlers: bowlersA, rotation: rotA, setRotation: setRotA, lockedOvers: teamA?.bowlingRotation || {} }),
+                React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamB.name} bowling rotation is automatic for this match — uploaded overs are reused and any missing overs are auto-filled.`),
+                React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamA.name} bowling rotation is automatic for this match — uploaded overs are reused and any missing overs are auto-filled.`),
                 React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 14 } }, "Uploaded team rotations are reused automatically for every scheduled match. You do not need to enter 20 overs again for each match. Unlocked/manual overs are only needed when a team has no complete uploaded rotation."))),
             React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 10 } }, "Engine uses supplied statistics. Bowlers without batting data receive a modest automatic tailender batting profile; no elite/god-tier batting rating is created."),
             React.createElement("button", { onClick: sim, disabled: !teamA || !teamB, style: { ...btnPrimary, opacity: !teamA || !teamB ? 0.35 : 1, padding: "10px 26px" } },
