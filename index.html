@@ -313,7 +313,7 @@ function validateRotation(rotation, bowlers) {
     }
     return { ok: true };
 }
-function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) {
+function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target, allowedBowlers) {
     const deliveries = [];
     const battingCard = battingXI.map((p) => ({ id: p.id, name: p.name, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, hs: Number.isFinite(Number(p.hs)) ? Number(p.hs) : null }));
     const bowlingMap = {};
@@ -322,10 +322,15 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
     let currentPartnership = { runs: 0, balls: 0, wicket: 0 };
     let strikerIdx = 0, nonStrikerIdx = 1, nextIn = 2, totalRuns = 0, totalWkts = 0;
     const line = (id) => battingCard.find((b) => b.id === id);
-    const bowlers = Object.values(rotation).map((id) => bowlerLookup[id]).filter(Boolean);
+    const bowlers = (allowedBowlers || Object.values(rotation).map((id) => bowlerLookup[id]).filter(Boolean));
     const rotationCheck = validateRotation(rotation, bowlers);
     if (!rotationCheck.ok)
         throw new Error(rotationCheck.reason);
+    const allowedIds = new Set(bowlers.map((b) => b.id));
+    for (let over = 1; over <= 20; over++) {
+        if (!allowedIds.has(rotation[over]))
+            throw new Error(`Over ${over} has a non-bowler assigned. The uploaded/manual bowling rotation was not followed.`);
+    }
     outer: for (let over = 1; over <= 20; over++) {
         const bowlerId = rotation[over];
         const bowler = bowlerLookup[bowlerId];
@@ -409,8 +414,8 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     if (!checkB.ok)
         throw new Error(`${teamB.name}: ${checkB.reason}`);
     const rng = Math.random;
-    const inn1 = simulateInnings(xiA, rotB, playerLookup, pitch, rng);
-    const inn2 = simulateInnings(xiB, rotA, playerLookup, pitch, rng, inn1.totalRuns);
+    const inn1 = simulateInnings(xiA, rotB, playerLookup, pitch, rng, undefined, bowlersB);
+    const inn2 = simulateInnings(xiB, rotA, playerLookup, pitch, rng, inn1.totalRuns, bowlersA);
     let winnerId = null, margin = "";
     if (inn2.totalRuns > inn1.totalRuns) {
         winnerId = teamB.id;
@@ -1116,13 +1121,18 @@ function autoRotation(bowlers) {
     return r;
 }
 function completeRotation(uploadedRotation, bowlers) {
-    const validIds = new Set((bowlers || []).map((b) => b.id));
+    const valid = (bowlers || []).filter(Boolean);
+    const validIds = new Set(valid.map((b) => b.id));
+    const byName = new Map(valid.map((b) => [String(b.name || '').trim().toLowerCase(), b.id]));
     const base = {};
-    Object.entries(uploadedRotation || {}).forEach(([over, id]) => {
+    Object.entries(uploadedRotation || {}).forEach(([over, rawId]) => {
         const n = Number(over);
-        if (n >= 1 && n <= 20 && validIds.has(id)) base[n] = id;
+        if (n < 1 || n > 20) return;
+        const raw = String(rawId || '').trim();
+        const resolved = validIds.has(raw) ? raw : byName.get(raw.toLowerCase());
+        if (resolved) base[n] = resolved;
     });
-    const auto = autoRotation(bowlers);
+    const auto = autoRotation(valid);
     for (let over = 1; over <= 20; over++) {
         if (!base[over]) base[over] = auto[over];
     }
@@ -1352,7 +1362,7 @@ function PlayMatchTab({ data, update, prefill }) {
                 React.createElement("div", { style: { marginBottom: 10, padding: "9px 11px", border: `1px solid ${C.lineSoft}`, borderRadius: 8, background: "rgba(72, 180, 120, .06)", color: C.accent2, fontSize: 11 } }, `✓ ${teamB.name}: uploaded rotation is preloaded automatically. You can manually change ANY over below.`),
                 React.createElement(RotationGrid, { label: `${teamB.name} bowls at ${teamA.name}`, bowlers: bowlersB, rotation: rotB, setRotation: setRotB }),
                 React.createElement(RotationGrid, { label: `${teamA.name} bowls at ${teamB.name}`, bowlers: bowlersA, rotation: rotA, setRotation: setRotA }),
-                React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 14 } }, "Uploaded rotation = automatic starting point. Any dropdown change is a manual override for this match only. If an uploaded over is missing, it is auto-filled from the real bowlers."))),
+                React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 14 } }, "Uploaded rotation is loaded first and followed exactly. Any dropdown change is a manual override for this match only. Missing overs are auto-filled only from players marked as bowlers. Non-bowlers can never be assigned."))),
             React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 10 } }, "Engine uses supplied statistics. Bowlers without batting data receive a modest automatic tailender batting profile; no elite/god-tier batting rating is created."),
             React.createElement("button", { onClick: sim, disabled: !teamA || !teamB, style: { ...btnPrimary, opacity: !teamA || !teamB ? 0.35 : 1, padding: "10px 26px" } },
                 React.createElement(PlayCircle, { size: 14, style: { verticalAlign: -2, marginRight: 5 } }),
