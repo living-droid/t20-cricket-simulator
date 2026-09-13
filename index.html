@@ -216,6 +216,79 @@ function resolveDelivery(v, rng) {
         return { outcome: "4", runs: 4, isWicket: false };
     return { outcome: "6", runs: 6, isWicket: false };
 }
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+function statStrength(avg, sr) {
+    // Exact uploaded batting numbers matter continuously, not just by archetype bucket.
+    const a = clamp((Number(avg) - 20) / 35, -1, 1);
+    const s = clamp((Number(sr) - 145) / 75, -1, 1);
+    return clamp(0.46 * a + 0.54 * s, -1, 1);
+}
+function bowlingStrength(econ, bowlSR, bowlAvg) {
+    // Lower bowling Avg/SR/Econ = stronger. All three uploaded bowling stats matter.
+    const e = clamp((8.5 - Number(econ)) / 3.0, -1, 1);
+    const s = clamp((20 - Number(bowlSR)) / 9.0, -1, 1);
+    const a = clamp((27 - Number(bowlAvg)) / 14.0, -1, 1);
+    return clamp(0.40 * e + 0.32 * s + 0.28 * a, -1, 1);
+}
+function applyExactStatsAndPitch(base, batter, bowler, pitch, over) {
+    const bv = { ...base };
+    const bat = getBattingProfile(batter);
+    const bs = statStrength(bat.avg, bat.sr);
+    const bw = bowlingStrength(bowler.econ, bowler.bowlSR, bowler.bowlAvg);
+    // Match-up strength: uploaded stats are the dominant player input.
+    const statEdge = clamp(0.72 * bs + 0.78 * bw, -1.5, 1.5);
+
+    // Exact batting stats reshape the outcome probabilities.
+    bv.wicket *= clamp(1 - 0.22 * bs, 0.72, 1.22);
+    bv.dot *= clamp(1 - 0.20 * bs, 0.72, 1.22);
+    bv.rotate *= clamp(1 + 0.10 * bs, 0.86, 1.14);
+    bv.four *= clamp(1 + 0.30 * bs, 0.70, 1.30);
+    bv.six *= clamp(1 + 0.34 * bs, 0.68, 1.34);
+
+    // Exact bowling stats counter the batter.
+    bv.wicket *= clamp(1 + 0.26 * bw, 0.68, 1.32);
+    bv.dot *= clamp(1 + 0.24 * bw, 0.70, 1.30);
+    bv.rotate *= clamp(1 - 0.10 * bw, 0.86, 1.14);
+    bv.four *= clamp(1 - 0.25 * bw, 0.70, 1.30);
+    bv.six *= clamp(1 - 0.30 * bw, 0.68, 1.32);
+
+    const pv = pitch.values || {};
+    const scoring = clamp((Number(pv.avgScoreTendency ?? 50) - 50) / 50, -1, 1);
+    const boundary = clamp((Number(pv.boundaryPercentage ?? 50) - 50) / 50, -1, 1);
+    const outfield = clamp((Number(pv.outfieldSpeed ?? 50) - 50) / 50, -1, 1);
+    const seam = clamp((Number(pv.seamMovement ?? 50) - 50) / 50, -1, 1);
+    const spin = clamp((Number(pv.spinAssistance ?? 50) - 50) / 50, -1, 1);
+    const pace = clamp((Number(pv.paceAssistance ?? 50) - 50) / 50, -1, 1);
+    const bounce = clamp((Number(pv.bounce ?? 50) - 50) / 50, -1, 1);
+    const isSpin = /spin/i.test(String(bowler.bowlingType || ''));
+    const isPace = !isSpin;
+    const assistance = isSpin ? spin : pace;
+
+    // Pitch is a major second driver: scoring tendency controls the overall run environment,
+    // while boundaries/outfield and bowling assistance affect the shape of each delivery.
+    const pitchRun = 1 + 0.24 * scoring;
+    bv.rotate *= 1 + 0.13 * scoring;
+    bv.four *= pitchRun * (1 + 0.22 * boundary + 0.10 * outfield);
+    bv.six *= pitchRun * (1 + 0.25 * boundary + 0.04 * bounce);
+    bv.dot *= 1 - 0.13 * scoring;
+    bv.wicket *= 1 - 0.10 * scoring;
+
+    // Seam/spin/pace assistance has a strong effect in the phases where it matters most.
+    const phaseAssist = over <= 6 && isPace ? seam : (over >= 7 && over <= 16 && isSpin ? spin : assistance * 0.45);
+    bv.wicket *= clamp(1 + 0.20 * phaseAssist, 0.72, 1.28);
+    bv.dot *= clamp(1 + 0.15 * phaseAssist, 0.78, 1.22);
+    bv.four *= clamp(1 - 0.16 * phaseAssist, 0.78, 1.22);
+    bv.six *= clamp(1 - 0.14 * phaseAssist, 0.80, 1.20);
+
+    // A small direct match-up bonus makes the exact player-vs-player stats meaningful.
+    bv.rotate *= 1 + 0.04 * statEdge;
+    bv.four *= 1 + 0.06 * statEdge;
+    bv.six *= 1 + 0.07 * statEdge;
+    bv.dot *= 1 - 0.04 * statEdge;
+    bv.wicket *= 1 - 0.05 * statEdge;
+    return renormalize(bv);
+}
 function simulateBall(batter, bowler, pitch, over, rng) {
     const batStats = pitchAdjustedProfile(batter, pitch);
     const { o: batVec } = classifyBatsman(batStats.sr, batStats.avg);
@@ -223,6 +296,7 @@ function simulateBall(batter, bowler, pitch, over, rng) {
     const { o: bowlBase } = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
     const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
     let combined = blend(batVec, bowlVec);
+    combined = applyExactStatsAndPitch(combined, batter, bowler, pitch, over);
     combined = applyPhase(combined, over);
     return resolveDelivery(combined, rng);
 }
@@ -288,11 +362,8 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
                     break outer;
                 continue;
             }
-            // Optional supplied Highest Score cap: never invent an HS.
-            const cap = Number.isFinite(Number(striker.hs)) ? Number(striker.hs) : null;
+            // HS is display-only metadata. It is intentionally NEVER used to cap or alter simulation output.
             let runs = res.runs;
-            if (cap != null && blLine.runs + runs > cap)
-                runs = Math.max(0, cap - blLine.runs);
             const outcome = runs === 0 ? "0" : runs === 4 ? "4" : runs === 6 ? "6" : String(runs);
             const finalRes = { outcome, runs, isWicket: false };
             deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, ...finalRes });
