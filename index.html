@@ -715,7 +715,7 @@ function parsePlayingXIText(text) {
                 return;
             const playerName = (m[2] || m[3] || "").trim();
             const player = players.find((p) => p.name.toLowerCase() === playerName.toLowerCase()) || players.find((p) => p.name.toLowerCase().includes(playerName.toLowerCase()));
-            const overs = m[3].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
+            const overs = m[4].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
             if (!player) {
                 warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`);
                 return;
@@ -732,7 +732,7 @@ function parsePlayingXIText(text) {
             });
         });
         if (Object.keys(rotation).length !== 20)
-            warnings.push(`${teamName}: rotation lock covers ${Object.keys(rotation).length}/20 overs.`);
+            warnings.push(`${teamName}: bowling rotation covers ${Object.keys(rotation).length}/20 overs.`);
         teams.push({ name: teamName, players, rotation });
     });
     if (!teams.length)
@@ -827,7 +827,7 @@ function PlayersTab({ data, update }) {
             React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 4 } }, "PASTE PLAYING XI DATA"),
             React.createElement("div", { style: { fontSize: 11, color: C.textDim, lineHeight: 1.55, marginBottom: 9 } },
                 "Paste all 10 team blocks in your format. The host can import the players, batting order, WK/C labels and the ",
-                React.createElement("b", null, "ROTATION LOCK"),
+                React.createElement("b", null, "BOWLING ROTATION"),
                 " automatically. You can also supply ",
                 React.createElement("b", null, "HS - highest score"),
                 " and ",
