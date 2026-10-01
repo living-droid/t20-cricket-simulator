@@ -288,11 +288,9 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
                     break outer;
                 continue;
             }
-            // Optional supplied Highest Score cap: never invent an HS.
-            const cap = Number.isFinite(Number(striker.hs)) ? Number(striker.hs) : null;
+            // HS is display-only metadata. It must NEVER affect simulation.
+            // Do not cap simulated runs by Highest Score.
             let runs = res.runs;
-            if (cap != null && blLine.runs + runs > cap)
-                runs = Math.max(0, cap - blLine.runs);
             const outcome = runs === 0 ? "0" : runs === 4 ? "4" : runs === 6 ? "6" : String(runs);
             const finalRes = { outcome, runs, isWicket: false };
             deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, ...finalRes });
