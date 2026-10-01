@@ -1183,107 +1183,45 @@ function downloadBlob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function buildScorecardExportHTML(result,teamAName,teamBName){
- const inn=(x,title)=>`<section><h2>${escapeHtml(title)} — ${x.totalRuns}/${x.totalWkts}</h2><h3>Batting</h3><table><tr><th>Player</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr>${x.battingCard.map(b=>`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${escapeHtml(b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out')}</td></tr>`).join('')}</table><h3>Bowling</h3><table><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr>${x.bowlingCard.map(b=>`<tr><td>${escapeHtml(b.name)}</td><td>${(b.balls/6).toFixed(1)}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${b.balls?(b.runs/(b.balls/6)).toFixed(2):'-'}</td></tr>`).join('')}</table>${x.fallOfWickets?.length?`<h3>Fall of Wickets</h3>${x.fallOfWickets.map(f=>`<p>${f.wicket}. ${escapeHtml(f.batter)} — ${f.score} at ${f.over} — ${escapeHtml(f.dismissal?.type||'Wicket')}</p>`).join('')}`:''}${x.partnerships?.length?`<h3>Partnerships</h3><p>${x.partnerships.map((p,i)=>`${i+1}. ${p.runs} (${p.balls} balls)`).join(' · ')}</p>`:''}</section>`;
- return `<div class="export-card"><h1>T20 CRICKET LEAGUE SIMULATOR</h1><p class="sub">${escapeHtml(teamAName)} vs ${escapeHtml(teamBName)} — ${escapeHtml(result.margin)}</p>${result.toss?`<p><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}.</p>`:''}${result.playerOfMatch?`<p><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</p>`:''}${inn(result.inn1,teamAName+' innings')}${inn(result.inn2,teamBName+' innings')}${result.superOver?`<section><h2>SUPER OVER</h2><p>${escapeHtml(teamAName)} ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts} · ${escapeHtml(teamBName)} ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</p></section>`:''}</div>`;
+ const verificationTable=(teamName,rows)=>{
+   let h='<section><h2>✓ Pre-Match Updated Tier Verification — '+escapeHtml(teamName)+'</h2><table><tr><th>Player</th><th>Role</th><th>Base Stats</th><th>Pitch Modifier</th><th>Adjusted Stats</th><th>New Assigned Tier Archetype</th></tr>';
+   (rows||[]).forEach(v=>{
+     const bowl=v.bowl;
+     const base=bowl?`Econ ${bowl.econ.toFixed(2)} / SR ${bowl.bowlSR.toFixed(1)} / Avg ${bowl.bowlAvg.toFixed(1)}`:`Avg ${v.batBase.avg} / SR ${v.batBase.sr}`;
+     const adjusted=bowl?`Econ ${bowl.econ.toFixed(2)} / SR ${bowl.bowlSR.toFixed(1)} / Avg ${bowl.bowlAvg.toFixed(1)}`:`Avg ${v.batAdjusted.avg.toFixed(2)} / SR ${v.batAdjusted.sr.toFixed(2)}`;
+     const mod=bowl?`${bowl.effectiveness>1?'+':bowl.effectiveness<1?'-':'0'}${Math.abs((bowl.effectiveness-1)*100).toFixed(0)}% effectiveness`:`Avg ${v.batModifier.avg>=0?'+':''}${v.batModifier.avg.toFixed(0)}% · SR ${v.batModifier.sr>=0?'+':''}${v.batModifier.sr.toFixed(0)}%`;
+     h+=`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.role)}</td><td>${base}</td><td>${mod}</td><td>${adjusted}</td><td><b>${escapeHtml(bowl?bowl.class.archetype:v.batTier)}</b></td></tr>`;
+   });
+   return h+'</table></section>';
+ };
+ const inn=(x,title)=>{
+   let h=`<section><h2>${escapeHtml(title)} — ${x.totalRuns}/${x.totalWkts}</h2><h3>Batting</h3><table><tr><th>Player</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr>`;
+   x.battingCard.forEach(b=>{const dis=b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out';h+=`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${escapeHtml(dis)}</td></tr>`;});
+   h+='</table><h3>Bowling</h3><table><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr>';
+   x.bowlingCard.forEach(b=>{h+=`<tr><td>${escapeHtml(b.name)}</td><td>${(b.balls/6).toFixed(1)}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${b.balls?(b.runs/(b.balls/6)).toFixed(2):'-'}</td></tr>`;});
+   h+='</table>';
+   if(x.fallOfWickets?.length){h+='<h3>Fall of Wickets</h3>';x.fallOfWickets.forEach(f=>{h+=`<p>${f.wicket}. ${escapeHtml(f.batter)} — ${f.score} at ${f.over} — ${escapeHtml(f.dismissal?.type||'Wicket')}</p>`;});}
+   if(x.partnerships?.length){h+='<h3>Partnerships</h3><p>'+x.partnerships.map((pp,i)=>`${i+1}. ${pp.runs} (${pp.balls} balls)`).join(' · ')+'</p>';}
+   return h+'</section>';
+ };
+ let html='<div class="export-card"><h1>T20 CRICKET LEAGUE SIMULATOR</h1>';
+ if(result.resimulated) html+='<div class="resim">RESIMULATED MATCH</div>';
+ html+=`<p class="sub">${escapeHtml(teamAName)} vs ${escapeHtml(teamBName)} — ${escapeHtml(result.margin)}</p>`;
+ if(result.toss) html+=`<p><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}.</p>`;
+ if(result.pitchName) html+=`<p><b>Pitch:</b> ${escapeHtml(result.pitchName)}</p>`;
+ if(result.playerOfMatch) html+=`<p><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</p>`;
+ html+=verificationTable(teamAName,result.verification?.teamA);
+ html+=verificationTable(teamBName,result.verification?.teamB);
+ html+=inn(result.inn1,teamAName+' innings');
+ html+=inn(result.inn2,teamBName+' innings');
+ if(result.superOver) html+=`<section><h2>SUPER OVER</h2><p>${escapeHtml(teamAName)} ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts} · ${escapeHtml(teamBName)} ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</p></section>`;
+ return html+'</div>';
 }
 function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
-function pdfEscape(s) {
-    return String(s ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\r?\n/g, ' ');
-}
-function pdfAscii(s) {
-    return String(s ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'?');
-}
-function makeSimplePDF(lines, filename) {
-    const pageW = 595, pageH = 842, left = 38, top = 46, bottom = 42;
-    const fontSize = 8.6, lineH = 11.5;
-    const maxChars = 92;
-    const wrapped = [];
-    lines.forEach(raw => {
-        const line = pdfAscii(raw);
-        if (!line) { wrapped.push(''); return; }
-        let rest = line;
-        while (rest.length > maxChars) {
-            let cut = rest.lastIndexOf(' ', maxChars);
-            if (cut < 35) cut = maxChars;
-            wrapped.push(rest.slice(0, cut));
-            rest = rest.slice(cut).trim();
-        }
-        wrapped.push(rest);
-    });
-    const perPage = Math.floor((pageH - top - bottom) / lineH);
-    const pages = [];
-    for (let i=0;i<wrapped.length;i+=perPage) pages.push(wrapped.slice(i,i+perPage));
-    if (!pages.length) pages.push(['']);
-    const objects = [];
-    const add = body => { objects.push(body); return objects.length; };
-    const catalog = add('<< /Type /Catalog /Pages 2 0 R >>');
-    const pagesObj = 2;
-    const pageIds = [];
-    const fontId = 3;
-    add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-    pages.forEach((pageLines) => {
-        const pageId = objects.length + 1;
-        pageIds.push(pageId);
-        let content = `BT /F1 ${fontSize} Tf ${left} ${pageH-top} Td 0 0 0 rg\n`;
-        pageLines.forEach((line, idx) => {
-            if (idx > 0) content += `0 -${lineH} Td\n`;
-            content += `(${pdfEscape(line)}) Tj\n`;
-        });
-        content += 'ET';
-        const streamId = pageId + 1;
-        add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${streamId} 0 R >>`);
-        add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
-    });
-    objects[1] = `<< /Type /Pages /Kids [${pageIds.map(id=>id+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
-    let pdf = '%PDF-1.4\n%âãÏÓ\n';
-    const offsets = [0];
-    objects.forEach((obj,i) => { offsets[i+1] = pdf.length; pdf += `${i+1} 0 obj\n${obj}\nendobj\n`; });
-    const xref = pdf.length;
-    pdf += `xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
-    for (let i=1;i<=objects.length;i++) pdf += String(offsets[i]).padStart(10,'0')+' 00000 n \n';
-    pdf += `trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-    downloadBlob(new Blob([pdf], {type:'application/pdf'}), filename);
-}
-function exportScorecardPDF(result, teamAName, teamBName) {
-    const lines = [];
-    lines.push('T20 CRICKET LEAGUE SIMULATOR');
-    lines.push(`${teamAName} vs ${teamBName}`);
-    lines.push(`Result: ${result.margin || ''}`);
-    if (result.toss) lines.push(`Toss: ${result.toss.winnerName} won and chose to ${result.toss.decision}.`);
-    if (result.playerOfMatch) lines.push(`Player of the Match: ${result.playerOfMatch.name}`);
-    lines.push('');
-    const addInnings = (x, title) => {
-        lines.push(`${title}: ${x.totalRuns}/${x.totalWkts}`);
-        lines.push('BATTER | R | B | SR | 4S | 6S | DISMISSAL');
-        (x.battingCard || []).forEach(b => {
-            const sr = b.balls ? ((b.runs/b.balls)*100).toFixed(1) : '-';
-            const dis = b.dismissal ? `${b.dismissal.type || 'Wicket'}${b.dismissal.bowler ? ' b '+b.dismissal.bowler : ''}${b.dismissal.fielder ? ' - '+b.dismissal.fielder : ''}` : 'not out';
-            lines.push(`${b.name}${!b.out && b.balls>0 ? ' *' : ''} | ${b.runs} | ${b.balls} | ${sr} | ${b.fours} | ${b.sixes} | ${dis}`);
-        });
-        lines.push('BOWLER | O | R | W | ECON');
-        (x.bowlingCard || []).forEach(b => {
-            const overs = (b.balls/6).toFixed(1);
-            const econ = b.balls ? (b.runs/(b.balls/6)).toFixed(2) : '-';
-            lines.push(`${b.name} | ${overs} | ${b.runs} | ${b.wkts} | ${econ}`);
-        });
-        if (x.fallOfWickets?.length) {
-            lines.push('FALL OF WICKETS');
-            x.fallOfWickets.forEach(f => lines.push(`${f.wicket}. ${f.batter} - ${f.score} at ${f.over} - ${f.dismissal?.type || 'Wicket'}`));
-        }
-        lines.push('');
-    };
-    addInnings(result.inn1, teamAName+' innings');
-    addInnings(result.inn2, teamBName+' innings');
-    if (result.superOver) {
-        lines.push('SUPER OVER');
-        lines.push(`${teamAName}: ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts}`);
-        lines.push(`${teamBName}: ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}`);
-    }
-    makeSimplePDF(lines, `${teamAName}-vs-${teamBName}-scorecard.pdf`);
-}
+function exportScorecardPDF() { document.body.classList.add("printing-scorecard"); window.setTimeout(() => { window.print(); window.setTimeout(() => document.body.classList.remove("printing-scorecard"), 500); }, 50); }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}.resim{display:inline-block;padding:7px 11px;border:1px solid #C15B4A;color:#C15B4A;font-weight:800;border-radius:999px;font-size:13px;margin:4px 0 10px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -1349,10 +1287,31 @@ function tournamentFormatInfo(format,n){
 function FormatGuide({format,n}){const x=tournamentFormatInfo(format,n);return React.createElement('div',{style:{...card,marginBottom:14,background:'linear-gradient(135deg,rgba(95,191,135,.12),rgba(224,184,90,.07))'}},React.createElement('div',{style:sectionTitle},React.createElement(Trophy,null),' Tournament Format Guide'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},[['Teams',n],['League matches',x.league],['Playoff matches',x.playoff],['Total scheduled',x.total]].map(([k,v])=>React.createElement('div',{key:k,style:{background:C.panelAlt,border:`1px solid ${C.lineSoft}`,borderRadius:8,padding:10}},React.createElement('div',{style:eyebrow},k),React.createElement('div',{style:{fontSize:20,fontWeight:800,color:C.accent}},v)))));}
 function computePlayerStats(data){const out=new Map(data.players.map(p=>[p.id,{id:p.id,name:p.name,matches:0,runs:0,balls:0,fours:0,sixes:0,outs:0,wkts:0,bowlRuns:0,bowlBalls:0,bestW:0,bestR:Infinity}]));(data.matches||[]).forEach(m=>{[m.inn1,m.inn2].forEach(inn=>{inn.battingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.runs+=b.runs;r.balls+=b.balls;r.fours+=b.fours;r.sixes+=b.sixes;if(b.out)r.outs++;});inn.bowlingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.wkts+=b.wkts;r.bowlRuns+=b.runs;r.bowlBalls+=b.balls;if(b.wkts>r.bestW||(b.wkts===r.bestW&&b.runs<r.bestR)){r.bestW=b.wkts;r.bestR=b.runs;}});});});return [...out.values()].map(r=>({...r,batAvg:r.outs?(r.runs/r.outs).toFixed(2):'-',sr:r.balls?(r.runs/r.balls*100).toFixed(2):'-',bowlAvg:r.wkts?(r.bowlRuns/r.wkts).toFixed(2):'-',econ:r.bowlBalls?(r.bowlRuns/(r.bowlBalls/6)).toFixed(2):'-',best:r.bestW?`${r.bestW}/${r.bestR}`:'-'}));}
 function PlayerStatsTab({data}){const rows=computePlayerStats(data);return React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Award,null),' Player Statistics'),React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Player','Matches','Runs','Bat Avg','SR','4s','6s','Wkts','Bowl Avg','Econ','Best'],rows:rows.map(r=>[r.name,r.matches,r.runs,r.batAvg,r.sr,r.fours,r.sixes,r.wkts,r.bowlAvg,r.econ,r.best])})));}
-function MatchViewer({m,onClose}){return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.84)',zIndex:30,overflowY:'auto',padding:20}},React.createElement('div',{className:'print-target',style:{maxWidth:1100,margin:'0 auto'}},React.createElement('div',{style:{...card,marginBottom:12}},React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},React.createElement('div',{style:sectionTitle},m.teamAName,' vs ',m.teamBName),React.createElement('button',{className:'no-print',style:btn,onClick:onClose},'Close')),React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',marginTop:6,fontSize:11}},React.createElement('span',{style:{color:C.accent2,fontWeight:700}},m.margin),m.toss&&React.createElement('span',{style:{color:C.textDim}},`Toss: ${m.toss.winnerName} won and chose to ${m.toss.decision}.`),m.playerOfMatch&&React.createElement('span',{style:{color:C.accent,fontWeight:700}},`Player of the Match: ${m.playerOfMatch.name}`))),React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},React.createElement(Scorecard,{innings:m.inn1,title:m.teamAName+' innings'}),React.createElement(Scorecard,{innings:m.inn2,title:m.teamBName+' innings'})),m.superOver&&React.createElement('div',{style:{...card,marginTop:10,padding:12}},React.createElement('div',{style:sectionTitle},'SUPER OVER'),React.createElement('div',{style:{fontSize:12}},`${m.teamAName}: ${m.superOver.teamA.totalRuns}/${m.superOver.teamA.totalWkts} · ${m.teamBName}: ${m.superOver.teamB.totalRuns}/${m.superOver.teamB.totalWkts}`)),React.createElement('button',{className:'no-print',style:{...btn,marginTop:10},onClick:()=>{document.body.classList.add('printing-scorecard');window.print();setTimeout(()=>document.body.classList.remove('printing-scorecard'),600)}},'Download / Print PDF')));}
+function MatchViewer({m,onClose}){
+ const verification=m.verification;
+ return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.84)',zIndex:30,overflowY:'auto',padding:20}},
+  React.createElement('div',{className:'print-target',style:{maxWidth:1100,margin:'0 auto'}},
+   React.createElement('div',{style:{...card,marginBottom:12}},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
+     React.createElement('div',null,React.createElement('div',{style:sectionTitle},m.teamAName,' vs ',m.teamBName),m.resimulated&&React.createElement('div',{style:{marginTop:4}},React.createElement(Badge,{color:C.red},'RESIMULATED MATCH'))),
+     React.createElement('button',{className:'no-print',style:btn,onClick:onClose},'Close')),
+    React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',marginTop:8,fontSize:11}},
+     React.createElement('span',{style:{color:C.accent2,fontWeight:700}},m.margin),
+     m.toss&&React.createElement('span',{style:{color:C.textDim}},`Toss: ${m.toss.winnerName} won and chose to ${m.toss.decision}.`),
+     m.pitchName&&React.createElement('span',{style:{color:C.textDim}},`Pitch: ${m.pitchName}`),
+     m.playerOfMatch&&React.createElement('span',{style:{color:C.accent,fontWeight:700}},`Player of the Match: ${m.playerOfMatch.name}`))),
+   verification&&React.createElement(React.Fragment,null,React.createElement(VerificationTable,{verification:verification.teamA||[],teamName:m.teamAName}),React.createElement(VerificationTable,{verification:verification.teamB||[],teamName:m.teamBName})),
+   React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},React.createElement(Scorecard,{innings:m.inn1,title:m.teamAName+' innings'}),React.createElement(Scorecard,{innings:m.inn2,title:m.teamBName+' innings'})),
+   m.superOver&&React.createElement('div',{style:{...card,marginTop:10,padding:12}},React.createElement('div',{style:sectionTitle},'SUPER OVER'),React.createElement('div',{style:{fontSize:12}},`${m.teamAName}: ${m.superOver.teamA.totalRuns}/${m.superOver.teamA.totalWkts} · ${m.teamBName}: ${m.superOver.teamB.totalRuns}/${m.superOver.teamB.totalWkts}`)),
+   React.createElement('button',{className:'no-print',style:{...btn,marginTop:10},onClick:()=>{document.body.classList.add('printing-scorecard');window.print();setTimeout(()=>document.body.classList.remove('printing-scorecard'),600)}},'Download / Print PDF')));
+}
 function ArchiveTab({data}){
  const [selected,setSelected]=useState(null);
- const rows=data.matches.map(m=>React.createElement('div',{key:m.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:12,borderBottom:`1px solid ${C.lineSoft}`}},React.createElement('div',null,React.createElement('b',null,`${m.teamAName} ${m.inn1.totalRuns}/${m.inn1.totalWkts} vs ${m.teamBName} ${m.inn2.totalRuns}/${m.inn2.totalWkts}`),React.createElement('div',{style:{fontSize:10.5,color:C.textDim}},m.margin,' · ',new Date(m.date).toLocaleString())),React.createElement('button',{style:btn,onClick:()=>setSelected(m)},'Open Scorecard')));
+ const rows=data.matches.map(m=>React.createElement('div',{key:m.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:12,borderBottom:`1px solid ${C.lineSoft}`}},
+   React.createElement('div',null,
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}},React.createElement('b',null,`${m.teamAName} ${m.inn1.totalRuns}/${m.inn1.totalWkts} vs ${m.teamBName} ${m.inn2.totalRuns}/${m.inn2.totalWkts}`),m.resimulated&&React.createElement(Badge,{color:C.red},'RESIMULATED MATCH')),
+    React.createElement('div',{style:{fontSize:10.5,color:C.textDim}},m.margin,' · ',new Date(m.date).toLocaleString())),
+   React.createElement('button',{style:btn,onClick:()=>setSelected(m)},'Open Scorecard')));
  return React.createElement(React.Fragment,null,React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Clock,null),' Completed Match Archive'),data.matches.length?rows:React.createElement(EmptyState,{icon:Clock,text:'No completed matches yet.'})),selected&&React.createElement(MatchViewer,{m:selected,onClose:()=>setSelected(null)}));
 }
 function BackupRestore({data,update}){const ref=React.useRef(null);return React.createElement('div',{style:{...card,marginTop:16}},React.createElement('div',{style:sectionTitle},'Backup & Restore'),React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('button',{style:btn,onClick:()=>downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'t20-league-backup.json')},'Export Backup'),React.createElement('button',{style:btn,onClick:()=>ref.current?.click()},'Import Backup'),React.createElement('input',{ref,type:'file',accept:'application/json',style:{display:'none'},onChange:e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{update(normalizeStoredRotations({...EMPTY_DATA,...JSON.parse(r.result)}));alert('Backup restored.');}catch(err){alert('Invalid backup.');}};r.readAsText(f)}})));}
@@ -1398,15 +1357,22 @@ function PlayMatchTab({ data, update, prefill }) {
             const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
             if (existing && !window.confirm("This fixture already has a completed result. Resimulate it and make the new result the latest result?")) return;
             const r = playMatch(teamA, teamB, pitch, effRotA, effRotB, playerLookup);
+            r.resimulated = !!existing;
+            r.pitchName = pitch.name;
+            r.pitchCategory = pitch.category;
             setResult(r);
             const record = {
                 id: nid("m"), date: new Date().toISOString(), teamAId, teamBId, teamAName: teamA.name, teamBName: teamB.name,
                 pitchName: pitch.name, pitchCategory: pitch.category, inn1: r.inn1, inn2: r.inn2, winnerId: r.winnerId, margin: r.margin,
                 playerOfMatch: r.playerOfMatch, verification: r.verification, toss: r.toss, superOver: r.superOver,
-                tournamentId: prefill?.tournamentId || null, fixtureId: prefill?.fixtureId || null,
+                tournamentId: prefill?.tournamentId || existing?.tournamentId || null, fixtureId: prefill?.fixtureId || existing?.fixtureId || null,
                 resimulated: !!existing, resimulationOf: existing?.id || null,
             };
-            update({ ...data, matches: [record, ...data.matches] });
+            // Keep one current result per scheduled fixture. A re-simulation replaces the old result
+            // so tournament tables/player records never double-count the same fixture. The marker
+            // remains on the replacement record so the archive and scorecard clearly identify it.
+            const nextMatches = existing ? data.matches.filter(m => m.id !== existing.id) : data.matches;
+            update({ ...data, matches: [record, ...nextMatches] });
         }
         catch (e) {
             window.alert(e.message || "The match could not be simulated.");
@@ -1471,9 +1437,9 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name), style: btn },
+                React.createElement("button", { className: "no-print", onClick: exportScorecardPDF, style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
-                    "Save PDF"),
+                    "Save / Print PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
                     React.createElement(ImageIcon, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save JPEG")),
