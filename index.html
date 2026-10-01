@@ -1,21 +1,30 @@
 <!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#081410"><title>T20 Cricket League Simulator</title><style>*{box-sizing:border-box}html,body,#root{margin:0;min-height:100%;background:#081410}body{overflow-x:hidden}button,input,select{font:inherit}@media(max-width:760px){.desktop-only{display:none!important}.mobile-stack{grid-template-columns:1fr!important}.mobile-scroll{overflow-x:auto}.mobile-full{width:100%!important}.mobile-hide{display:none!important}table{min-width:560px}.app-shell{padding:16px 10px 32px!important}.app-title{font-size:25px!important}.tabs{overflow-x:auto;flex-wrap:nowrap!important;padding-bottom:10px!important}.tabs button{flex:0 0 auto}.card{padding:14px!important}.grid-responsive{grid-template-columns:1fr!important}.form-grid{grid-template-columns:1fr 1fr!important}.rotation-grid{grid-template-columns:repeat(5,1fr)!important}}
 @media print {
-  @page { size: A4; margin: 10mm; }
-  body.printing-scorecard { background: #fff !important; }
+  /* Compact, low-storage PDF mode: text/vector content only, no UI decoration. */
+  @page { size: A4; margin: 6mm; }
+  body.printing-scorecard { background: #fff !important; color: #111 !important; }
   body.printing-scorecard .app-shell { background: #fff !important; padding: 0 !important; color: #111 !important; }
   body.printing-scorecard .app-shell > div > * { visibility: hidden !important; }
   body.printing-scorecard .app-shell .print-target,
   body.printing-scorecard .app-shell .print-target * { visibility: visible !important; }
-  body.printing-scorecard .app-shell .print-target { position: absolute; left: 0; top: 0; width: 100%; }
+  body.printing-scorecard .app-shell .print-target { position: absolute; left: 0; top: 0; width: 100%; max-width: none !important; }
   body.printing-scorecard .no-print { display: none !important; }
-  body.printing-scorecard .card { box-shadow: none !important; break-inside: avoid; }
+  body.printing-scorecard .card { box-shadow: none !important; background: #fff !important; border: 1px solid #bbb !important; break-inside: avoid; }
+  body.printing-scorecard table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
+  body.printing-scorecard th, body.printing-scorecard td { padding: 2px 4px !important; border-color: #ccc !important; }
+  body.printing-scorecard h1 { font-size: 18px !important; margin: 0 0 4px !important; }
+  body.printing-scorecard h2 { font-size: 12px !important; margin: 5px 0 3px !important; }
+  body.printing-scorecard p { margin: 2px 0 !important; font-size: 9px !important; }
+  body.printing-scorecard * { text-shadow: none !important; filter: none !important; }
 }
 
 </style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
 const Icon = ({ children, ...p }) => React.createElement("span", { ...p, style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1em', lineHeight: 1, ...(p.style || {}) } }, children || '•');
 const Users = () => React.createElement(Icon, null, "\uD83D\uDC65"), MapPin = () => React.createElement(Icon, null, "\uD83D\uDCCD"), Shield = () => React.createElement(Icon, null, "\uD83D\uDEE1\uFE0F"), PlayCircle = () => React.createElement(Icon, null, "\u25B6\uFE0F"), Trophy = () => React.createElement(Icon, null, "\uD83C\uDFC6"), Clock = () => React.createElement(Icon, null, "\u25F7"), RotateCcw = () => React.createElement(Icon, null, "\u21BB"), CheckCircle2 = () => React.createElement(Icon, null, "\u2713"), Loader2 = () => React.createElement(Icon, null, "\u27F3"), ChevronRight = () => React.createElement(Icon, null, "\u203A"), X = () => React.createElement(Icon, null, "\u00D7"), Plus = () => React.createElement(Icon, null, "+"), Award = () => React.createElement(Icon, null, "\uD83C\uDFC5"), Zap = () => React.createElement(Icon, null, "\u26A1"), Home = () => React.createElement(Icon, null, "\u2302"), Target = () => React.createElement(Icon, null, "\uD83C\uDFAF"), Flame = () => React.createElement(Icon, null, "\uD83D\uDD25"), FileText = () => React.createElement(Icon, null, "\uD83D\uDCC4"), ImageIcon = () => React.createElement(Icon, null, "\uD83D\uDDBC\uFE0F");
 // ============================================================================
-// ENGINE (rules identical to the reference doc)
+// ENGINE (rules grounded in the uploaded T20 Cricket AI Simulation Reference + System Specification)
+// HS is display-only. Toss is recorded but has zero baseline advantage.
+// Pitch adjustment -> dynamic tier reclassification -> batter/bowler matrix mean -> phase modifiers.
 // ============================================================================
 const vec = (wicket, dot, rotate, four, six) => ({ wicket, dot, rotate, four, six });
 const BATSMAN_ARCHETYPES = [
@@ -290,13 +299,27 @@ function applyExactStatsAndPitch(base, batter, bowler, pitch, over) {
     return renormalize(bv);
 }
 function simulateBall(batter, bowler, pitch, over, rng) {
+    // MASTER ENGINE: raw uploaded stats -> pitch adjustment -> dynamic archetype ->
+    // batter/bowler normalized arithmetic mean -> phase modifier -> delivery roll.
+    // HS is metadata only and is never consulted here.
     const batStats = pitchAdjustedProfile(batter, pitch);
     const { o: batVec } = classifyBatsman(batStats.sr, batStats.avg);
     const bowlStats = pitchAdjustedBowlerProfile(bowler, pitch);
     const { o: bowlBase } = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
-    const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
+    let bowlVec = bowlBase;
+    // Apply the documented +/-10% pitch effectiveness as a directional control
+    // adjustment before re-normalizing; it never creates an external player bonus.
+    if (bowlStats.effectiveness !== 1) {
+        const e = bowlStats.effectiveness;
+        bowlVec = renormalize(vec(
+            bowlBase.wicket * e,
+            bowlBase.dot * e,
+            bowlBase.rotate,
+            bowlBase.four / e,
+            bowlBase.six / e
+        ));
+    }
     let combined = blend(batVec, bowlVec);
-    combined = applyExactStatsAndPitch(combined, batter, bowler, pitch, over);
     combined = applyPhase(combined, over);
     return resolveDelivery(combined, rng);
 }
@@ -355,10 +378,15 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target, 
                 totalWkts += 1;
                 bl.wkts += 1;
                 currentPartnership.wicket = totalWkts;
-                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: `${over}.${ball}` });
+                const fielders = battingXI.filter(p => p.id !== striker.id);
+                const fielder = fielders.length ? fielders[Math.floor(rng()*fielders.length)] : null;
+                const rtype = rng();
+                const dismissal = rtype < .38 ? {type:'Caught',bowler:bowler.name,fielder:fielder?.name||'Fielder'} : rtype < .60 ? {type:'Bowled',bowler:bowler.name} : rtype < .78 ? {type:'LBW',bowler:bowler.name} : rtype < .92 ? {type:'Stumped',bowler:bowler.name,fielder:fielder?.name||'Wicketkeeper'} : {type:'Run Out',fielder:fielder?.name||'Fielder'};
+                blLine.dismissal = dismissal;
+                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: `${over}.${ball}`, dismissal });
                 partnerships.push({ ...currentPartnership, wicket: totalWkts });
                 currentPartnership = { runs: 0, balls: 0, wicket: 0 };
-                deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, ...res });
+                deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, dismissal, ...res });
                 if (nextIn < battingXI.length) {
                     strikerIdx = nextIn;
                     nextIn += 1;
@@ -401,7 +429,7 @@ function calculatePlayerOfMatch(inn1, inn2) {
     });
     return candidates.sort((a, b) => b.impact - a.impact)[0] || null;
 }
-function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
+function playMatchBase(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     const xiA = teamA.xiOrder.map((id) => playerLookup[id]).filter(Boolean);
     const xiB = teamB.xiOrder.map((id) => playerLookup[id]).filter(Boolean);
     if (xiA.length !== 11 || xiB.length !== 11)
@@ -428,6 +456,46 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     else
         margin = "Match tied";
     return { inn1, inn2, winnerId, margin, rotationAudit: "AUDIT PASSED: Batting positions and rotation locks adhered to with 0% deviation.", playerOfMatch: calculatePlayerOfMatch(inn1, inn2), verification: { teamA: getPreMatchVerification(xiA, pitch), teamB: getPreMatchVerification(xiB, pitch) } };
+}
+
+function simulateSuperOver(battingXI, bowlingTeam, rotation, playerLookup, pitch, rng) {
+    const bowlers = bowlingTeam.xiOrder.map(id => playerLookup[id]).filter(p => p && p.isBowler && Number.isFinite(Number(p.econ)) && Number.isFinite(Number(p.bowlSR)) && Number.isFinite(Number(p.bowlAvg)));
+    const valid = bowlers.filter(p => Object.values(rotation || {}).includes(p.id));
+    const bowler = (valid.length ? valid : bowlers).sort((a,b)=>Number(a.econ)-Number(b.econ))[0];
+    if (!bowler) throw new Error(`${bowlingTeam.name}: no valid bowler available for Super Over.`);
+    const batters = battingXI.slice(0,3);
+    let striker = 0, non = 1, runs=0, wkts=0, balls=0;
+    const battingCard = batters.map(p=>({id:p.id,name:p.name,runs:0,balls:0,fours:0,sixes:0,out:false}));
+    const deliveries=[];
+    while(balls<6 && wkts<2){
+      const batter=batters[striker];
+      if(!batter) break;
+      const res=simulateBall(batter,bowler,pitch,1,rng);
+      const bc=battingCard.find(x=>x.id===batter.id); bc.balls++;
+      balls++;
+      if(res.isWicket){ wkts++; bc.out=true; deliveries.push({over:1,ball:balls,batter:batter.name,bowler:bowler.name,outcome:'W',isWicket:true,dismissal:{type:'Bowled',bowler:bowler.name}}); if(wkts<2) striker=2; }
+      else { const r=res.runs; bc.runs+=r; runs+=r; if(r===4)bc.fours++; if(r===6)bc.sixes++; deliveries.push({over:1,ball:balls,batter:batter.name,bowler:bowler.name,outcome:String(r),runs:r,isWicket:false}); if(r===1||r===3)[striker,non]=[non,striker]; }
+    }
+    return {teamId: battingXI.teamId || null, bowler:bowler.name, totalRuns:runs,totalWkts:wkts,battingCard,deliveries};
+}
+function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
+    const base = playMatchBase(teamA, teamB, pitch, rotA, rotB, playerLookup);
+    const tossTeam = Math.random() < .5 ? teamA : teamB;
+    const decision = Math.random() < .5 ? 'bat' : 'field';
+    const result = {...base, toss: {winnerId:tossTeam.id,winnerName:tossTeam.name,decision}, superOver:null};
+    if(base.winnerId == null){
+      let aSO,bSO, attempts=0;
+      do {
+        aSO=simulateSuperOver(teamA.xiOrder.map(id=>playerLookup[id]).filter(Boolean), teamB, rotB, playerLookup, pitch, Math.random); aSO.teamId=teamA.id;
+        bSO=simulateSuperOver(teamB.xiOrder.map(id=>playerLookup[id]).filter(Boolean), teamA, rotA, playerLookup, pitch, Math.random); bSO.teamId=teamB.id;
+        attempts++;
+      } while(aSO.totalRuns===bSO.totalRuns && attempts<5);
+      if(aSO.totalRuns>bSO.totalRuns){ result.winnerId=teamA.id; result.margin=`won Super Over (${aSO.totalRuns}-${bSO.totalRuns})`; }
+      else if(bSO.totalRuns>aSO.totalRuns){ result.winnerId=teamB.id; result.margin=`won Super Over (${bSO.totalRuns}-${aSO.totalRuns})`; }
+      else { result.margin='Super Over tied — result unresolved'; }
+      result.superOver={teamA:aSO,teamB:bSO,attempts};
+    }
+    return result;
 }
 // ============================================================================
 // PITCH ARCHETYPES
@@ -572,6 +640,95 @@ function getLatestFixtureMatch(matches, fixtureId) {
 }
 let idCounter = Date.now();
 const nid = (p) => `${p}${idCounter++}`;
+
+// ============================================================================
+// TOURNAMENT / VALIDATION HELPERS
+// Restored from the working tournament foundation. These are required before App mounts.
+// ============================================================================
+function hasSuppliedNumber(v) { return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)); }
+function getTeamSimulationIssues(team, playerLookup) {
+    const xi = (team?.xiOrder || []).map((id) => playerLookup[id]).filter(Boolean);
+    const issues = [];
+    if (xi.length !== 11) issues.push(`${team?.name || "Team"} must have exactly 11 players.`);
+    xi.forEach((p) => {
+        if (!p.isBowler && (!hasSuppliedNumber(p.avg) || !hasSuppliedNumber(p.sr))) issues.push(`${p.name} has no supplied batting Average/SR.`);
+        if (p.isBowler && (!Number.isFinite(Number(p.bowlAvg)) || !Number.isFinite(Number(p.bowlSR)) || !Number.isFinite(Number(p.econ)))) issues.push(`${p.name} has incomplete supplied bowling statistics.`);
+        if (p.isBowler && !p.bowlingType) issues.push(`${p.name} has no supplied bowling type.`);
+    });
+    return issues;
+}
+function computePointsTable(tournament, matches, teams) {
+    const table = {};
+    (tournament.teamIds || []).forEach((id) => { table[id] = { teamId:id, played:0, won:0, lost:0, tied:0, points:0, runsFor:0, oversFor:0, runsAgainst:0, oversAgainst:0 }; });
+    tournamentMatches(matches, tournament.id).forEach((m) => {
+        const a=table[m.teamAId], b=table[m.teamBId]; if(!a||!b||!m.inn1||!m.inn2) return;
+        a.played++; b.played++;
+        const o1=(m.inn1.deliveries?.length||0)/6, o2=(m.inn2.deliveries?.length||0)/6;
+        a.runsFor+=m.inn1.totalRuns; a.oversFor+=o1; a.runsAgainst+=m.inn2.totalRuns; a.oversAgainst+=o2;
+        b.runsFor+=m.inn2.totalRuns; b.oversFor+=o2; b.runsAgainst+=m.inn1.totalRuns; b.oversAgainst+=o1;
+        if(m.winnerId===m.teamAId){a.won++;a.points+=2;b.lost++;}
+        else if(m.winnerId===m.teamBId){b.won++;b.points+=2;a.lost++;}
+        else {a.tied++;b.tied++;a.points++;b.points++;}
+    });
+    return Object.values(table).map(r=>({...r,teamName:teams.find(t=>t.id===r.teamId)?.name||"?",nrr:r.oversFor&&r.oversAgainst?((r.runsFor/r.oversFor)-(r.runsAgainst/r.oversAgainst)).toFixed(2):"0.00"})).sort((x,y)=>y.points-x.points||parseFloat(y.nrr)-parseFloat(x.nrr));
+}
+function generateRoundRobin(teamIds) {
+    const ids=[...(teamIds||[])]; if(ids.length<2)return []; if(ids.length%2)ids.push(null);
+    const rounds=ids.length-1, half=ids.length/2, fixtures=[]; let matchNo=0;
+    for(let r=0;r<rounds;r++){
+        for(let i=0;i<half;i++){const a=ids[i],b=ids[ids.length-1-i];if(a&&b){matchNo++;fixtures.push({id:nid("fx"),teamAId:a,teamBId:b,round:`Matchday ${r+1}`,matchNo,played:false});}}
+        ids.splice(1,0,ids.pop());
+    }
+    return fixtures;
+}
+function generateDoubleRoundRobin(teamIds){
+    const first=generateRoundRobin(teamIds);
+    const second=first.map(f=>({...f,id:nid("fx"),teamAId:f.teamBId,teamBId:f.teamAId,round:f.round.replace("Matchday","Matchday 2nd Leg")}));
+    return [...first,...second].map((f,i)=>({...f,matchNo:i+1}));
+}
+function nextPowerOfTwo(n){let p=1;while(p<n)p*=2;return p;}
+function knockoutLabelForCount(n){if(n===2)return "Final";if(n===4)return "Semi Finals";if(n===8)return "Quarter Finals";if(n===16)return "Round of 16";return "Knockout Round";}
+function generateKnockoutInitial(teamIds){
+    const ids=[...(teamIds||[])];if(ids.length<2)return {fixtures:[],stage:"Final",byeTeamIds:[]};
+    const size=nextPowerOfTwo(ids.length), prelimMatches=ids.length-size/2;
+    if(prelimMatches<=0){const fixtures=[];for(let i=0;i<ids.length;i+=2)fixtures.push({id:nid("fx"),teamAId:ids[i],teamBId:ids[i+1],round:knockoutLabelForCount(ids.length),played:false});return {fixtures:fixtures.map((f,i)=>({...f,matchNo:i+1})),stage:knockoutLabelForCount(ids.length),byeTeamIds:[]};}
+    const fixtures=[];for(let i=0;i<prelimMatches*2;i+=2)fixtures.push({id:nid("fx"),teamAId:ids[i],teamBId:ids[i+1],round:"Preliminary Round",matchNo:fixtures.length+1,played:false});
+    return {fixtures,stage:"Preliminary Round",byeTeamIds:ids.slice(prelimMatches*2)};
+}
+function getWinnersForFixtures(fixtures,matches){return fixtures.map(f=>getLatestFixtureMatch(matches,f.id)?.winnerId).filter(Boolean);}
+function playoffConfigForCount(n){
+    if(n===7||n===8)return {fixtures:[{teamARef:"RANK2",teamBRef:"RANK3",round:"Qualifier"},{teamARef:"RANK1",teamBRef:"WINNER:Qualifier",round:"Final"}]};
+    if(n===9||n===10)return {fixtures:[{teamARef:"RANK1",teamBRef:"RANK2",round:"Qualifier 1"},{teamARef:"RANK3",teamBRef:"RANK4",round:"Eliminator"},{teamARef:"LOSER:Qualifier 1",teamBRef:"WINNER:Eliminator",round:"Qualifier 2"},{teamARef:"WINNER:Qualifier 1",teamBRef:"WINNER:Qualifier 2",round:"Final"}]};
+    return null;
+}
+function makeAutoPlayoffFixtures(teamCount,leagueMatchCount){const cfg=playoffConfigForCount(teamCount);if(!cfg)return [];return cfg.fixtures.map((f,i)=>({id:nid("fx"),teamAId:null,teamBId:null,teamARef:f.teamARef,teamBRef:f.teamBRef,round:f.round,matchNo:leagueMatchCount+i+1,played:false}));}
+function playoffTeamId(ref,tn,matches,teams){
+    if(!ref)return null;
+    if(ref.startsWith("RANK")){const done=(tn.fixtures||[]).length>0&&(tn.fixtures||[]).every(f=>!!getLatestFixtureMatch(matches,f.id));if(!done)return null;return computePointsTable(tn,matches,teams)[Number(ref.slice(4))-1]?.teamId||null;}
+    const m=ref.match(/^(WINNER|LOSER):(.+)$/);if(!m)return null;
+    const fx=(tn.playoffFixtures||[]).find(f=>f.round===m[2]);const result=fx?getLatestFixtureMatch(matches,fx.id):null;if(!result||!result.winnerId)return null;
+    return m[1]==="WINNER"?result.winnerId:(result.teamAId===result.winnerId?result.teamBId:result.teamAId);
+}
+function resolvePlayoffFixture(fx,tn,matches,teams){if(!fx?.teamARef&&!fx?.teamBRef)return fx;return {...fx,teamAId:playoffTeamId(fx.teamARef,tn,matches,teams),teamBId:playoffTeamId(fx.teamBRef,tn,matches,teams)};}
+function migrateAutoPlayoffs(data){
+    let changed=false;
+    const tournaments=(data.tournaments||[]).map(tn=>{
+        const eligible=(tn.format==="double-round-robin"||tn.format==="round-robin-playoffs")&&[7,8,9,10].includes((tn.teamIds||[]).length);
+        if(!eligible||(tn.playoffFixtures||[]).length)return tn;
+        changed=true;return {...tn,playoffFixtures:makeAutoPlayoffFixtures(tn.teamIds.length,(tn.fixtures||[]).length)};
+    });
+    return changed?{...data,tournaments}:data;
+}
+function generateNextKnockoutRound(tn,matches){
+    const current=tn.knockoutStage||"Preliminary Round", currentFixtures=(tn.playoffFixtures||[]).filter(f=>f.round===current);
+    if(!currentFixtures.length||!currentFixtures.every(f=>matches.some(m=>m.fixtureId===f.id)))return null;
+    const winners=getWinnersForFixtures(currentFixtures,matches), bye=current==="Preliminary Round"?(tn.knockoutByeTeamIds||[]):[], teams=[...winners,...bye];
+    if(teams.length<2)return null;
+    const nextStage=knockoutLabelForCount(teams.length), fixtures=[];
+    for(let i=0;i<teams.length;i+=2)if(teams[i+1])fixtures.push({id:nid("fx"),teamAId:teams[i],teamBId:teams[i+1],round:nextStage,matchNo:fixtures.length+1,played:false});
+    return {fixtures,stage:nextStage};
+}
+// ============================================================================
 // ============================================================================
 // STYLE SYSTEM
 // ============================================================================
@@ -630,115 +787,109 @@ function RankBadge({ rank }) {
 function parsePlayingXIText(text) {
     const warnings = [];
     const teams = [];
-    const normalized = String(text || "").replace(/\r/g, "").replace(/\u00a0/g, " ").trim();
-    if (!normalized)
-        return { teams: [], warnings: ["Paste at least one [TEAM] PLAYING XI block."] };
-    const blocks = normalized.split(/(?=^\s*\[[^\]]+\]\s*PLAYING\s+XI\s*$)/im).filter(Boolean);
-    blocks.forEach((block) => {
-        const header = block.match(/^\s*\[([^\]]+)\]\s*PLAYING\s+XI\s*$/im);
-        if (!header)
-            return;
+    const normalized = String(text || "").replace(/\r/g, "").replace(/\u00a0/g, " ").replace(/[–—]/g, "-").trim();
+    if (!normalized) return { teams: [], warnings: ["Paste at least one [TEAM] PLAYING XI block."] };
+
+    // Forgiving importer: harmless formatting differences should not break a whole XI.
+    const blocks = normalized.split(/(?=^\s*\[[^\]]+\]\s*PLAYING\s+XI\s*\|?\s*$)/im).filter(Boolean);
+    const typeNames = [
+        "left-arm wrist spin","left arm wrist spin","left-arm orthodox","left arm orthodox",
+        "slow left-arm orthodox","slow left arm orthodox","chinaman","wrist spin",
+        "leg-break googly","leg break googly","leg spin","leg break","googly",
+        "off break","off-break","off spin","carrom ball","doosra","finger spin","mystery spin",
+        "left-arm fast","left arm fast","right-arm fast","right arm fast",
+        "left-arm medium-fast","left arm medium-fast","right-arm medium-fast","right arm medium-fast",
+        "left-arm medium","left arm medium","right-arm medium","right arm medium",
+        "medium-fast","medium fast","fast-medium","fast medium","swing","seam","cutter",
+        "slower ball","knuckleball","fast","medium"
+    ];
+    const esc = x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const typePattern = new RegExp("(" + typeNames.sort((a,b)=>b.length-a.length).map(esc).join("|") + ")", "i");
+    const num = v => { const n = Number(String(v ?? "").replace(/[*,†‡]/g, "").trim()); return Number.isFinite(n) ? n : null; };
+    const findNumber = (body, labels) => {
+        const m = String(body).match(new RegExp("(?:" + labels.join("|") + ")\\s*(?:=|:|-)?\\s*([0-9]+(?:\\.[0-9]+)?)", "i"));
+        return m ? num(m[1]) : null;
+    };
+    const cleanName = raw => String(raw || "")
+        .replace(/^[-:|]+\s*/, "")
+        .replace(/\s*✈️?\s*$/u, "")
+        .replace(/\s*\((?:WK|C|CAP|CAPTAIN|WK\s*\/\s*C|C\s*\/\s*WK)\)\s*$/i, "")
+        .trim();
+
+    blocks.forEach(block => {
+        const header = block.match(/^\s*\[([^\]]+)\]\s*PLAYING\s+XI\s*\|?\s*$/im);
+        if (!header) return;
         const teamName = header[1].trim();
         const rotationMarker = block.search(/^\s*\[[^\]]+\]\s*(?:ROTATION\s+LOCK|BOWLING\s+ROTATION)\s*\|?\s*$/im);
         const xiText = rotationMarker >= 0 ? block.slice(header.index + header[0].length, rotationMarker) : block.slice(header.index + header[0].length);
         const rotationText = rotationMarker >= 0 ? block.slice(rotationMarker) : "";
-        const lines = xiText.split("\n");
         const players = [];
         let current = null;
-        const finish = () => { if (current) {
-            players.push(current);
-            current = null;
-        } };
-        lines.forEach((raw) => {
-            const line = raw.trim();
-            if (!line)
-                return;
-            const numbered = line.match(/^(\d+)\.\s*(.+)$/);
-            if (numbered) {
-                finish();
-                const roleText = (numbered[2].match(/\(([^)]+)\)\s*$/) || [])[1] || "";
-                const cleanName = numbered[2].replace(/\s*\(([^)]+)\)\s*$/, "").trim();
-                const typeMatch = roleText.match(/(Off\s*Spin|Leg\s*Spin|Left[- ]Arm\s*Orthodox|Left[- ]Arm\s*Wrist\s*Spin|Fast[- ]Medium|Medium[- ]Fast|Fast|Medium)/i);
-                current = { order: Number(numbered[1]), name: cleanName, isWK: /\bWK\b/i.test(roleText), isCaptain: /\bC\b/i.test(roleText), avg: null, sr: null, hs: null, bowlAvg: null, bowlSR: null, econ: null, isBowler: false, bowlingType: typeMatch ? typeMatch[1].replace(/\s+/g, " ").trim() : "" };
-                return;
+        const finish = () => {
+            if (!current) return;
+            const body = current.body.join(" | ");
+            const roleSource = current.rawName + " " + body;
+            const batAvg = findNumber(body, ["Bat\\s*Avg","Batting\\s*Avg","Batting\\s*Average","Average","Avg"]);
+            const batSR = findNumber(body, ["Bat\\s*SR","Batting\\s*SR","Strike\\s*Rate","SR"]);
+            const hs = findNumber(body, ["HS","Highest\\s*Score","High\\s*Score"]);
+            const bowlAvg = findNumber(body, ["Bowl(?:ing)?\\s*Avg","Bowl(?:ing)?\\s*Average"]);
+            const bowlSR = findNumber(body, ["Bowl(?:ing)?\\s*SR","Bowl(?:ing)?\\s*Strike\\s*Rate"]);
+            const econ = findNumber(body, ["Econ","Economy","Economy\\s*Rate"]);
+            const explicitType = body.match(/(?:Bowl(?:ing)?\\s*Type|Type)\\s*(?:=|:|-)?\\s*([^|,;]+)$/i);
+            const tm = roleSource.match(typePattern) || (explicitType && explicitType[1] ? explicitType[1].match(typePattern) : null);
+            const bowlingType = tm ? tm[1].replace(/\s+/g, " ").trim() : "";
+            const isBowler = bowlAvg != null || bowlSR != null || econ != null || !!bowlingType || /\b(?:bowler|bowling)\b/i.test(roleSource);
+            current = {
+                order: current.order,
+                name: cleanName(current.rawName),
+                isWK: /\bWK\b|wicket[- ]?keeper/i.test(roleSource),
+                isCaptain: /(?:^|[\s(])C(?:[\s)]|$)|\bcaptain\b/i.test(roleSource),
+                isOverseas: /✈️|\boverseas\b/u.test(roleSource),
+                avg: batAvg, sr: batSR, hs,
+                bowlAvg: bowlAvg != null ? bowlAvg : (bowlSR != null && econ != null ? Number((econ * bowlSR / 6).toFixed(2)) : null),
+                bowlSR: bowlSR != null ? bowlSR : (bowlAvg != null && econ != null && econ > 0 ? Number((bowlAvg * 6 / econ).toFixed(2)) : null),
+                econ, isBowler, bowlingType
+            };
+            players.push(current); current = null;
+        };
+        xiText.split("\n").forEach(raw => {
+            const line = raw.trim(); if (!line) return;
+            // Accept 1., 1), 1-, 1:, #1 and "1 Player Name".
+            const m = line.match(/^(?:#\s*)?(\d{1,2})\s*(?:[.)\-:]|\s{1,})\s*(.+)$/);
+            if (m && Number(m[1]) >= 1 && Number(m[1]) <= 11) {
+                finish(); current = { order:Number(m[1]), rawName:m[2].trim(), body:[] }; current.body.push(m[2]); return;
             }
-            if (!current)
-                return;
-            const bat = line.match(/Bat\s*Avg\s*[-:]\s*([\d.]+)\s*\|\s*SR\s*[-:]\s*([\d.]+)/i);
-            if (bat) {
-                current.avg = Number(bat[1]);
-                current.sr = Number(bat[2]);
-                return;
-            }
-            const hs = line.match(/(?:HS|Highest\s*Score)\s*[-:]\s*([\d.]+)/i);
-            if (hs) {
-                current.hs = Number(hs[1]);
-                return;
-            }
-            const bt = line.match(/(?:Bowl(?:ing)?\s*Type|Type)\s*[-:]\s*(.+)$/i);
-            if (bt) {
-                current.bowlingType = bt[1].trim();
-                return;
-            }
-            const bowl = line.match(/Bowl\s*(?:Avg\s*[-:]\s*([\d.]+)\s*\|\s*)?(?:SR\s*[-:]\s*([\d.]+))\s*\|\s*Econ\s*[-:]\s*([\d.]+)/i);
-            if (bowl) {
-                current.bowlAvg = bowl[1] ? Number(bowl[1]) : null;
-                current.bowlSR = bowl[2] ? Number(bowl[2]) : null;
-                current.econ = Number(bowl[3]);
-                current.isBowler = true;
-                if (current.bowlAvg == null && current.bowlSR != null)
-                    current.bowlAvg = Number((current.econ * current.bowlSR / 6).toFixed(2));
-                if (current.bowlSR == null && current.bowlAvg != null && current.econ > 0)
-                    current.bowlSR = Number((current.bowlAvg * 6 / current.econ).toFixed(2));
-            }
+            if (current) current.body.push(line);
         });
-        finish();
-        players.sort((a, b) => a.order - b.order);
-        if (players.length !== 11)
-            warnings.push(`${teamName}: found ${players.length} players; a Playing XI should have 11.`);
+        finish(); players.sort((a,b)=>a.order-b.order);
+        if (players.length !== 11) warnings.push(`${teamName}: found ${players.length} players; a Playing XI should have 11.`);
         const seen = new Set();
-        players.forEach((p) => {
+        players.forEach(p => {
             const key = p.name.toLowerCase();
-            if (seen.has(key))
-                warnings.push(`${teamName}: duplicate player name "${p.name}".`);
-            seen.add(key);
-            if ((p.avg == null || p.sr == null) && !p.isBowler)
-                warnings.push(`${teamName}: ${p.name} is missing batting Average/SR.`);
-            if (p.isBowler && (p.bowlSR == null || p.econ == null))
-                warnings.push(`${teamName}: ${p.name} is missing bowling SR or Economy.`);
+            if (seen.has(key)) warnings.push(`${teamName}: duplicate player name "${p.name}".`); seen.add(key);
+            if (p.avg == null || p.sr == null) warnings.push(`${teamName}: ${p.name} has no recognizable batting Average/SR; check only if batting stats were intended.`);
+            if (p.isBowler && (p.bowlSR == null || p.econ == null)) warnings.push(`${teamName}: ${p.name} looks like a bowler but Bowl SR/Economy could not be read.`);
         });
         const rotation = {};
-        const rotationLines = rotationText.split("\n");
-        rotationLines.forEach((raw) => {
-            const m = raw.trim().match(/^#?\s*(\d+)\s*(?:\(([^)]+)\)|([^:]+?))\s*:\s*(.+)$/);
-            if (!m)
-                return;
-            const playerName = (m[2] || m[3] || "").trim();
-            const player = players.find((p) => p.name.toLowerCase() === playerName.toLowerCase()) || players.find((p) => p.name.toLowerCase().includes(playerName.toLowerCase()));
-            const overs = m[4].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
-            if (!player) {
-                warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`);
-                return;
-            }
-            if (!player.isBowler) {
-                warnings.push(`${teamName}: ${player.name} is assigned overs but has no bowling stats.`);
-            }
-            if (overs.length > 4)
-                warnings.push(`${teamName}: ${player.name} has more than 4 overs locked.`);
-            overs.forEach((over) => {
-                if (rotation[over])
-                    warnings.push(`${teamName}: over ${over} is assigned twice.`);
-                rotation[over] = player.name;
-            });
+        rotationText.split("\n").forEach(raw => {
+            const line = raw.trim(); if (!line || /BOWLING\s+ROTATION|ROTATION\s+LOCK/i.test(line)) return;
+            const m = line.match(/^#?\s*(\d{1,2})\s*(?:\(([^)]+)\)|([^:]+?))\s*:\s*(.+)$/);
+            if (!m) return;
+            const playerName = cleanName((m[2] || m[3] || "").trim());
+            const player = players.find(p=>p.name.toLowerCase()===playerName.toLowerCase()) || players.find(p=>p.name.toLowerCase().includes(playerName.toLowerCase()) || playerName.toLowerCase().includes(p.name.toLowerCase()));
+            const overs = m[4].split(/[,\s]+/).map(x=>Number(x)).filter(x=>Number.isInteger(x)&&x>=1&&x<=20);
+            if (!player) { warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`); return; }
+            if (!player.isBowler) warnings.push(`${teamName}: ${player.name} is assigned overs but has no recognizable bowling data.`);
+            if (overs.length > 4) warnings.push(`${teamName}: ${player.name} has more than 4 overs locked.`);
+            overs.forEach(over=>{ if(rotation[over]) warnings.push(`${teamName}: over ${over} is assigned twice.`); rotation[over]=player.name; });
         });
-        if (Object.keys(rotation).length !== 20)
-            warnings.push(`${teamName}: bowling rotation covers ${Object.keys(rotation).length}/20 overs.`);
-        teams.push({ name: teamName, players, rotation });
+        if (Object.keys(rotation).length !== 20) warnings.push(`${teamName}: bowling rotation covers ${Object.keys(rotation).length}/20 overs.`);
+        teams.push({name:teamName,players,rotation});
     });
-    if (!teams.length)
-        warnings.push("No [TEAM] PLAYING XI header was detected.");
-    return { teams, warnings };
+    if (!teams.length) warnings.push("No [TEAM] PLAYING XI header was detected.");
+    return {teams,warnings};
 }
+
 function mergeImportedData(data, parsed) {
     const players = [...data.players];
     const warnings = [...(parsed.warnings || [])];
@@ -790,115 +941,91 @@ function mergeImportedData(data, parsed) {
     });
     return { ...data, players, teams, importWarnings: warnings };
 }
-function PlayersTab({ data, update }) {
-    const [draft, setDraft] = useState({ name: "", avg: 30, sr: 130, hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
-    const [bulkText, setBulkText] = useState("");
-    const [importMessage, setImportMessage] = useState("");
-    const [importWarnings, setImportWarnings] = useState([]);
-    const importPlayingXIs = () => {
-        const parsed = parsePlayingXIText(bulkText);
-        setImportWarnings(parsed.warnings || []);
-        if (!parsed.teams.length) {
-            setImportMessage("");
-            return;
-        }
-        const next = mergeImportedData(data, parsed);
-        setImportWarnings(next.importWarnings || parsed.warnings || []);
-        delete next.importWarnings;
-        update(next);
-        setImportMessage(`Imported ${parsed.teams.length} team${parsed.teams.length === 1 ? "" : "s"} and ${parsed.teams.reduce((n, t) => n + t.players.length, 0)} players.`);
-    };
-    const addPlayer = () => {
-        if (!draft.name.trim())
-            return;
-        update({ ...data, players: [...data.players, { ...draft, hs: draft.hs === "" ? null : Number(draft.hs), bowlAvg: draft.bowlAvg === "" ? null : Number(draft.bowlAvg), bowlSR: draft.bowlSR === "" ? null : Number(draft.bowlSR), econ: draft.econ === "" ? null : Number(draft.econ), isSpin: /spin/i.test(draft.bowlingType || ""), id: nid("p") }] });
-        setDraft({ name: "", avg: 30, sr: 130, hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
-    };
-    const removePlayer = (id) => update({ ...data, players: data.players.filter((p) => p.id !== id), teams: data.teams.map(t => ({ ...t, squad: t.squad.filter(pid => pid !== id), xiOrder: t.xiOrder.filter(pid => pid !== id) })) });
-    return (React.createElement("div", { style: card },
-        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 } },
-            React.createElement("div", { style: sectionTitle },
-                React.createElement(Users, { size: 16 }),
-                " Player Pool"),
-            React.createElement("span", { style: eyebrow },
-                data.players.length,
-                " registered")),
-        React.createElement("div", { style: { background: C.panelAlt, border: `1px solid ${C.lineSoft}`, borderRadius: 10, padding: 14, marginBottom: 16 } },
-            React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 4 } }, "PASTE PLAYING XI DATA"),
-            React.createElement("div", { style: { fontSize: 11, color: C.textDim, lineHeight: 1.55, marginBottom: 9 } },
-                "Paste all 10 team blocks in your format. The host can import the players, batting order, WK/C labels and the ",
-                React.createElement("b", null, "BOWLING ROTATION"),
-                " automatically. You can also supply ",
-                React.createElement("b", null, "HS - highest score"),
-                " and ",
-                React.createElement("b", null, "Bowling Type - Fast / Fast-Medium / Medium-Fast / Medium / Off Spin / Leg Spin / Left-Arm Orthodox / Left-Arm Wrist Spin"),
-                "."),
-            React.createElement("textarea", { value: bulkText, onChange: (e) => setBulkText(e.target.value), placeholder: '[GT] PLAYING XI\n\n1. Fin Allen ( WK )\n   Bat Avg - 34.90 | SR - 214.11\n...\n\n[GT] BOWLING ROTATION |\n#7 Mitchell Santner: 7 , 9 , 11 , 13', style: { ...input, minHeight: 180, resize: "vertical", lineHeight: 1.45, fontFamily: mono, fontSize: 11 } }),
-            React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginTop: 9, flexWrap: "wrap" } },
-                React.createElement("button", { onClick: importPlayingXIs, disabled: !bulkText.trim(), style: { ...btnPrimary, opacity: bulkText.trim() ? 1 : 0.4 } },
-                    React.createElement(Users, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
-                    "Import Playing XIs"),
-                React.createElement("button", { onClick: () => { setBulkText(""); setImportMessage(""); setImportWarnings([]); }, style: btn }, "Clear"),
-                importMessage && React.createElement("span", { style: { fontSize: 11, color: C.accent2 } }, importMessage)),
-            importWarnings.length > 0 && React.createElement("div", { style: { marginTop: 9, padding: 9, borderRadius: 7, background: "rgba(212,115,94,0.08)", border: "1px solid #3D2621", color: C.textDim, fontSize: 10.5, lineHeight: 1.5 } },
-                importWarnings.slice(0, 12).map((w, i) => React.createElement("div", { key: i },
-                    "\u2022 ",
-                    w)),
-                importWarnings.length > 12 && React.createElement("div", null,
-                    "\u2022 +",
-                    importWarnings.length - 12,
-                    " more warnings"))),
-        React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 8 } }, "Manual player entry (optional)"),
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.35fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.85fr auto", gap: 6, marginBottom: 16, alignItems: "center", padding: 13, background: C.panelAlt, borderRadius: 9, border: `1px solid ${C.lineSoft}` } },
-            React.createElement("input", { placeholder: "Player name", style: input, value: draft.name, onChange: (e) => setDraft({ ...draft, name: e.target.value }) }),
-            React.createElement("input", { placeholder: "Bat Avg", type: "number", style: input, value: draft.avg, onChange: (e) => setDraft({ ...draft, avg: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Bat SR", type: "number", style: input, value: draft.sr, onChange: (e) => setDraft({ ...draft, sr: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "HS (optional)", type: "number", style: input, value: draft.hs, onChange: (e) => setDraft({ ...draft, hs: e.target.value }) }),
-            React.createElement("label", { style: { fontSize: 10.5, color: C.textDim, display: "flex", gap: 4, alignItems: "center" } },
-                React.createElement("input", { type: "checkbox", checked: draft.isBowler, onChange: (e) => setDraft({ ...draft, isBowler: e.target.checked }) }),
-                " bowls"),
-            React.createElement("input", { placeholder: "Bowl Avg", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlAvg, onChange: (e) => setDraft({ ...draft, bowlAvg: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Bowl SR", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlSR, onChange: (e) => setDraft({ ...draft, bowlSR: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Econ", type: "number", step: "0.1", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.econ, onChange: (e) => setDraft({ ...draft, econ: Number(e.target.value) }) }),
-            React.createElement("select", { disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlingType, onChange: (e) => setDraft({ ...draft, bowlingType: e.target.value }) },
-                React.createElement("option", { value: "" }, "Bowling type"),
-                React.createElement("option", null, "Fast"),
-                React.createElement("option", null, "Fast-Medium"),
-                React.createElement("option", null, "Medium-Fast"),
-                React.createElement("option", null, "Medium"),
-                React.createElement("option", null, "Off Spin"),
-                React.createElement("option", null, "Leg Spin"),
-                React.createElement("option", null, "Left-Arm Orthodox"),
-                React.createElement("option", null, "Left-Arm Wrist Spin")),
-            React.createElement("button", { onClick: addPlayer, style: btnPrimary },
-                React.createElement(Plus, { size: 13, style: { verticalAlign: -2 } }),
-                " Add")),
-        React.createElement("div", { style: { maxHeight: 440, overflowY: "auto" } },
-            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.7fr 0.5fr 0.5fr 1.8fr auto", gap: 6, ...eyebrow, padding: "0 4px 8px", borderBottom: `1px solid ${C.line}` } },
-                React.createElement("span", null, "Player"),
-                React.createElement("span", null, "Avg"),
-                React.createElement("span", null, "SR"),
-                React.createElement("span", null, "Classification"),
-                React.createElement("span", null)),
-            data.players.length === 0 && React.createElement(EmptyState, { icon: Users, text: "No players yet \u2014 add your first one above." }),
-            data.players.map((p) => {
-                const profile = getBattingProfile(p);
-                const bat = classifyBatsman(profile.sr, profile.avg).archetype;
-                const bowl = p.isBowler && hasSuppliedNumber(p.econ) && hasSuppliedNumber(p.bowlSR) && hasSuppliedNumber(p.bowlAvg) ? classifyBowler(p.econ, p.bowlSR, p.bowlAvg).archetype : null;
-                return (React.createElement("div", { key: p.id, style: { display: "grid", gridTemplateColumns: "1.7fr 0.5fr 0.5fr 1.8fr auto", gap: 6, fontSize: 12.5, padding: "10px 4px", borderBottom: `1px solid ${C.lineSoft}`, alignItems: "center" } },
-                    React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 8, fontWeight: 500 } },
-                        React.createElement(Avatar, { name: p.name, size: 22 }),
-                        " ",
-                        p.name),
-                    React.createElement("span", { style: { color: C.textDim } }, getBattingProfile(p).avg),
-                    React.createElement("span", { style: { color: C.textDim } }, getBattingProfile(p).sr),
-                    getBattingProfile(p).auto && React.createElement("span", { style: { color: C.accent, marginLeft: 5 } }, "AUTO"),
-                    React.createElement("span", { style: { display: "flex", gap: 5, flexWrap: "wrap" } },
-                        bat ? React.createElement(Badge, { color: tierColor(bat) }, bat.replace(" (extrapolated)", "")) : React.createElement(Badge, { color: C.red }, "Batting stats missing"),
-                        bowl && React.createElement(Badge, { color: tierColor(bowl) }, bowl.replace(" (nearest)", ""))),
-                    React.createElement("button", { onClick: () => removePlayer(p.id), style: { background: "none", border: "none", color: C.textFaint, cursor: "pointer" } },
-                        React.createElement(X, { size: 14 }))));
-            }))));
+function AddPlayerTab({data, update}){
+ const blank={name:'',avg:'',sr:'',hs:'',isBowler:false,bowlAvg:'',bowlSR:'',econ:'',bowlingType:'',isWK:false,isCaptain:false,isOverseas:false,teamId:''};
+ const [draft,setDraft]=useState(blank),[msg,setMsg]=useState('');
+ const bowlingTypes=['Fast','Fast-Medium','Medium-Fast','Medium','Left-Arm Fast','Right-Arm Fast','Left-Arm Medium','Right-Arm Medium','Left-Arm Medium-Fast','Right-Arm Medium-Fast','Off Spin','Off Break','Leg Spin','Leg Break','Leg-Break Googly','Googly','Left-Arm Orthodox','Slow Left-Arm Orthodox','Left-Arm Wrist Spin','Wrist Spin','Chinaman','Carrom Ball','Doosra','Finger Spin','Mystery Spin','Swing','Seam','Cutter','Slower Ball','Knuckleball'];
+ const reset=()=>setDraft(blank);
+ const add=()=>{
+   const name=draft.name.trim();
+   if(!name){setMsg('Enter a player name.');return;}
+   if(data.players.some(p=>p.name.trim().toLowerCase()===name.toLowerCase())){setMsg('That player already exists.');return;}
+   const n=v=>v===''||v==null?null:Number(v);
+   const player={id:nid('p'),name,avg:n(draft.avg),sr:n(draft.sr),hs:n(draft.hs),isBowler:!!draft.isBowler,bowlAvg:n(draft.bowlAvg),bowlSR:n(draft.bowlSR),econ:n(draft.econ),bowlingType:draft.bowlingType||'',isSpin:/spin|break|googly|doosra|chinaman|carrom/i.test(draft.bowlingType||''),isWK:!!draft.isWK,isCaptain:!!draft.isCaptain,isOverseas:!!draft.isOverseas};
+   let teams=data.teams;
+   if(draft.teamId){teams=teams.map(t=>t.id===draft.teamId?{...t,squad:Array.from(new Set([...(t.squad||[]),player.id]))}:t);}
+   update({...data,players:[...data.players,player],teams});
+   setMsg(`${name} added successfully.`);reset();
+ };
+ return React.createElement('div',null,
+  React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},'Add Player'),React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:12}},'Add one player manually. HS is stored for display only and never affects simulation.'),
+   React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:10}},
+    [['name','Player name'],['avg','Bat Avg'],['sr','Bat SR'],['hs','High Score'],['bowlAvg','Bowl Avg'],['bowlSR','Bowl SR'],['econ','Economy']].map(([k,l])=>React.createElement('div',{key:k},React.createElement('div',{style:eyebrow},l),React.createElement('input',{style:input,value:draft[k],placeholder:l,onChange:e=>setDraft({...draft,[k]:e.target.value})}))),
+    React.createElement('div',null,React.createElement('div',{style:eyebrow},'Bowling type'),React.createElement('select',{style:input,value:draft.bowlingType,onChange:e=>setDraft({...draft,bowlingType:e.target.value})},React.createElement('option',{value:''},'Select if bowler'),bowlingTypes.map(x=>React.createElement('option',{key:x,value:x},x)))),
+    React.createElement('div',null,React.createElement('div',{style:eyebrow},'Add to team'),React.createElement('select',{style:input,value:draft.teamId,onChange:e=>setDraft({...draft,teamId:e.target.value})},React.createElement('option',{value:''},'No team yet'),data.teams.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name))))
+   ),
+   React.createElement('div',{style:{display:'flex',gap:16,flexWrap:'wrap',marginTop:12,fontSize:12}},
+    [['isBowler','Bowler'],['isWK','WK'],['isCaptain','Captain'],['isOverseas','Overseas']].map(([k,l])=>React.createElement('label',{key:k,style:{display:'flex',alignItems:'center',gap:6}},React.createElement('input',{type:'checkbox',checked:!!draft[k],onChange:e=>setDraft({...draft,[k]:e.target.checked})}),l))
+   ),
+   React.createElement('div',{style:{display:'flex',gap:8,marginTop:14}},React.createElement('button',{style:btnPrimary,onClick:add},'Add Player'),React.createElement('button',{style:btn,onClick:reset},'Clear'),msg&&React.createElement('span',{style:{alignSelf:'center',fontSize:11,color:msg.includes('successfully')?C.accent2:C.red}},msg))
+  )
+ );
+}
+function AddTeamTab({data,update}){
+ const [bulkText,setBulkText]=useState(''),[msg,setMsg]=useState(''),[warnings,setWarnings]=useState([]);
+ const importTeams=()=>{
+   const parsed=parsePlayingXIText(bulkText);
+   setWarnings(parsed.warnings||[]);
+   if(!parsed.teams.length){setMsg('No valid team blocks found.');return;}
+   let players=[...data.players],teams=[...data.teams];
+   parsed.teams.forEach(src=>{
+     let t=teams.find(x=>x.name.trim().toLowerCase()===src.name.trim().toLowerCase());
+     if(!t){t={id:nid('t'),name:src.name,squad:[],xiOrder:[],groundName:'',homeGroundId:'',bowlingRotation:{}};teams.push(t);}
+     const ids=[];
+     src.players.forEach(p=>{
+       let ex=players.find(x=>x.name.trim().toLowerCase()===p.name.trim().toLowerCase());
+       const normalized={avg:p.avg,sr:p.sr,hs:p.hs,isBowler:p.isBowler,bowlAvg:p.bowlAvg,bowlSR:p.bowlSR,econ:p.econ,bowlingType:p.bowlingType||'',isSpin:/spin|break|googly|doosra|chinaman|carrom/i.test(p.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain,isOverseas:p.isOverseas};
+       if(!ex){ex={id:nid('p'),name:p.name,...normalized};players.push(ex);}
+       else Object.assign(ex,normalized);
+       ids.push(ex.id);
+     });
+     t.squad=Array.from(new Set(ids));
+     t.xiOrder=src.players.sort((a,b)=>a.order-b.order).map(p=>players.find(x=>x.name.trim().toLowerCase()===p.name.trim().toLowerCase())?.id).filter(Boolean);
+     const rot={};
+     Object.entries(src.rotation||{}).forEach(([over,nm])=>{const p=players.find(x=>x.name.trim().toLowerCase()===String(nm).trim().toLowerCase());if(p)rot[over]=p.id;});
+     t.bowlingRotation=rot;
+   });
+   update({...data,players,teams});
+   setMsg(`Imported ${parsed.teams.length} whole team(s) with Playing XI + bowling rotations.`);
+ };
+ return React.createElement('div',null,
+  React.createElement('div',{style:card},
+   React.createElement('div',{style:sectionTitle},'Add Whole Team'),
+   React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:10}},'Paste one or more complete team blocks. The importer creates/updates the team, all 11 players, batting order, WK/C/overseas markers, bowling types and the uploaded 20-over rotation.'),
+   React.createElement('textarea',{value:bulkText,onChange:e=>setBulkText(e.target.value),style:{...input,minHeight:260,fontFamily:mono,fontSize:11},placeholder:`[GT] PLAYING XI\n\n1. Finn Allen ( WK ) ✈️\n   Bat Avg - 34.90 | SR - 214.11 | HS - 100*\n\n2. MS Dhoni\n   Bat Avg - 53.66 | SR - 220.54 | HS - 37*\n\n...\n\n[GT] BOWLING ROTATION |\n#7 Mitchell Starc: 1, 6, 18, 20\n#8 Rashid Khan: 2, 4, 10, 16\n#9 Anshul Kamboj: 3, 15, 17, 19`}),
+   React.createElement('div',{style:{display:'flex',gap:8,marginTop:10,alignItems:'center',flexWrap:'wrap'}},
+    React.createElement('button',{style:btnPrimary,onClick:importTeams},'Import Whole Team(s)'),
+    React.createElement('button',{style:btn,onClick:()=>{setBulkText('');setMsg('');setWarnings([])}},'Clear'),
+    msg&&React.createElement('span',{style:{fontSize:11,color:C.accent2}},msg)),
+   warnings.length>0&&React.createElement('div',{style:{marginTop:9,color:C.red,fontSize:10}},warnings.map((w,i)=>React.createElement('div',{key:i},'• ',w))),
+   React.createElement('div',{style:{marginTop:12,padding:10,border:`1px solid ${C.lineSoft}`,borderRadius:8,fontSize:10.5,color:C.textDim}},'Tip: You can paste multiple [TEAM] PLAYING XI blocks in one go. HS is stored for display only and never affects simulation. Formatting can be imperfect.')
+  )
+ );
+}
+function PlayersTab({data,update}){
+ const [bulkText,setBulkText]=useState(''),[msg,setMsg]=useState(''),[warnings,setWarnings]=useState([]),[editing,setEditing]=useState(null),[draft,setDraft]=useState({});
+ const importPlayingXIs=()=>{const parsed=parsePlayingXIText(bulkText);setWarnings(parsed.warnings);if(!parsed.teams.length){setMsg('No valid team blocks found.');return;}let players=[...data.players],teams=[...data.teams];parsed.teams.forEach(src=>{let t=teams.find(x=>x.name.toLowerCase()===src.name.toLowerCase());if(!t){t={id:nid('t'),name:src.name,squad:[],xiOrder:[],groundName:'',homeGroundId:'',bowlingRotation:{}};teams.push(t);}const ids=[];src.players.forEach(p=>{let ex=players.find(x=>x.name.toLowerCase()===p.name.toLowerCase());if(!ex){ex={id:nid('p'),name:p.name,avg:p.avg,sr:p.sr,hs:p.hs,isBowler:p.isBowler,bowlAvg:p.bowlAvg,bowlSR:p.bowlSR,econ:p.econ,bowlingType:p.bowlingType||'',isSpin:/spin/i.test(p.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain};players.push(ex);}else Object.assign(ex,{avg:p.avg,sr:p.sr,hs:p.hs??ex.hs??null,isBowler:p.isBowler,bowlAvg:p.bowlAvg??ex.bowlAvg??null,bowlSR:p.bowlSR??ex.bowlSR??null,econ:p.econ??ex.econ??null,bowlingType:p.bowlingType||ex.bowlingType||'',isSpin:/spin/i.test(p.bowlingType||ex.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain});ids.push(ex.id);});t.squad=ids;t.xiOrder=src.players.sort((a,b)=>a.order-b.order).map(p=>players.find(x=>x.name.toLowerCase()===p.name.toLowerCase())?.id).filter(Boolean);const rot={};Object.entries(src.rotation||{}).forEach(([o,nm])=>{const p=players.find(x=>x.name.toLowerCase()===String(nm).toLowerCase());if(p)rot[o]=p.id;});t.bowlingRotation=rot;});update({...data,players,teams});setMsg(`Imported ${parsed.teams.length} team(s). Bowling rotations saved.`);};
+ const startEdit=p=>{setEditing(p.id);setDraft({...p});};
+ const saveEdit=()=>{update({...data,players:data.players.map(p=>p.id===editing?{...p,...draft,avg:Number(draft.avg),sr:Number(draft.sr),hs:draft.hs===''?null:Number(draft.hs),bowlAvg:draft.bowlAvg===''?null:Number(draft.bowlAvg),bowlSR:draft.bowlSR===''?null:Number(draft.bowlSR),econ:draft.econ===''?null:Number(draft.econ),isSpin:/spin/i.test(draft.bowlingType||'')}:p)});setEditing(null);};
+ const removePlayer=id=>update({...data,players:data.players.filter(p=>p.id!==id),teams:data.teams.map(t=>({...t,squad:t.squad.filter(x=>x!==id),xiOrder:t.xiOrder.filter(x=>x!==id),bowlingRotation:Object.fromEntries(Object.entries(t.bowlingRotation||{}).filter(([,v])=>v!==id))}))});
+ const rows=data.players.map(p=>React.createElement('tr',{key:p.id,style:{borderTop:`1px solid ${C.lineSoft}`}},React.createElement('td',{style:{padding:7,fontWeight:600}},p.name,p.isWK?' · WK':''),React.createElement('td',{style:{padding:7}},p.avg??'-'),React.createElement('td',{style:{padding:7}},p.sr??'-'),React.createElement('td',{style:{padding:7}},p.hs??'-'),React.createElement('td',{style:{padding:7}},p.isBowler?`${p.bowlAvg??'-'} / ${p.bowlSR??'-'} / ${p.econ??'-'}`:'—'),React.createElement('td',{style:{padding:7}},p.bowlingType||'—'),React.createElement('td',{style:{padding:7}},React.createElement('button',{style:btn,onClick:()=>startEdit(p)},'Edit'),React.createElement('button',{style:{...btnGhostDanger,marginLeft:5},onClick:()=>removePlayer(p.id)},'Delete'))));
+ const modal=editing?React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.72)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:20,padding:16}},React.createElement('div',{style:{...card,width:'min(620px,100%)'}},React.createElement('div',{style:sectionTitle},'Edit Player'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},['name','avg','sr','hs','bowlAvg','bowlSR','econ','bowlingType'].map(k=>React.createElement('div',{key:k},React.createElement('div',{style:eyebrow},k),React.createElement('input',{style:input,value:draft[k]??'',onChange:e=>setDraft({...draft,[k]:e.target.value})})))),React.createElement('div',{style:{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}},React.createElement('button',{style:btn,onClick:()=>setEditing(null)},'Cancel'),React.createElement('button',{style:btnPrimary,onClick:saveEdit},'Save Changes')))):null;
+ return React.createElement(React.Fragment,null,
+  React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Users,null),' Player Pool'),React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:10}},'Paste [TEAM] PLAYING XI and [TEAM] BOWLING ROTATION blocks. HS is display-only.'),React.createElement('textarea',{value:bulkText,onChange:e=>setBulkText(e.target.value),style:{...input,minHeight:190,fontFamily:mono,fontSize:11},placeholder:`[CSK] PLAYING XI
+...
+[CSK] BOWLING ROTATION |
+#11 Arshdeep Singh: 1, 6, 18, 20`}),React.createElement('div',{style:{display:'flex',gap:8,marginTop:9,alignItems:'center'}},React.createElement('button',{style:btnPrimary,onClick:importPlayingXIs},'Import Playing XIs + Rotations'),msg&&React.createElement('span',{style:{fontSize:11,color:C.accent2}},msg)),warnings.length>0&&React.createElement('div',{style:{marginTop:8,color:C.red,fontSize:10}},warnings.map((w,i)=>React.createElement('div',{key:i},'• ',w))))) ,
+  React.createElement('div',{style:{...card,marginTop:18}},React.createElement('div',{style:sectionTitle},'Registered Players'),React.createElement('div',{style:{overflowX:'auto'}},React.createElement('table',{style:{width:'100%',minWidth:760,borderCollapse:'collapse',fontSize:11.5}},React.createElement('thead',null,React.createElement('tr',{style:eyebrow},['Player','Bat Avg','SR','HS','Bowling','Type','Actions'].map(h=>React.createElement('th',{key:h,style:{padding:7,textAlign:'left'}},h))),React.createElement('tbody',null,rows)))),modal);
 }
 // ============================================================================
 // PITCHES TAB
@@ -984,105 +1111,12 @@ function getOwner(playerId, teams, excludeTeamId) {
     return t ? t.name : null;
 }
 function TeamsTab({ data, update }) {
-    const [name, setName] = useState("");
-    const [editingId, setEditingId] = useState(null);
-    const addTeam = () => {
-        if (!name.trim() || data.teams.length >= 10)
-            return;
-        const t = { id: nid("t"), name, squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
-        update({ ...data, teams: [...data.teams, t] });
-        setName("");
-        setEditingId(t.id);
-    };
-    const removeTeam = (id) => update({ ...data, teams: data.teams.filter((t) => t.id !== id) });
-    const updateTeam = (id, patch) => update({ ...data, teams: data.teams.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
-    const editing = data.teams.find((t) => t.id === editingId);
-    const editingGround = editing && data.pitches.find((p) => p.id === editing.homeGroundId);
-    return (React.createElement("div", { className: "grid-responsive", style: { display: "grid", gridTemplateColumns: "0.85fr 1.4fr", gap: 18 } },
-        React.createElement("div", { style: card },
-            React.createElement("div", { style: sectionTitle },
-                React.createElement(Shield, { size: 16 }),
-                " Teams"),
-            React.createElement("div", { style: { ...eyebrow, marginBottom: 8 } },
-                "HOST CONTROL \u00B7 ",
-                data.teams.length,
-                "/10 teams"),
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 16 } },
-                React.createElement("input", { disabled: data.teams.length >= 10, placeholder: data.teams.length >= 10 ? "10-team limit reached" : "New team name", style: input, value: name, onChange: (e) => setName(e.target.value), onKeyDown: (e) => e.key === "Enter" && addTeam() }),
-                React.createElement("button", { onClick: addTeam, disabled: data.teams.length >= 10, style: { ...btnPrimary, opacity: data.teams.length >= 10 ? 0.4 : 1 } },
-                    React.createElement(Plus, { size: 13 }))),
-            data.teams.length === 0 && React.createElement(EmptyState, { icon: Shield, text: "No teams yet." }),
-            data.teams.map((t) => (React.createElement("div", { key: t.id, onClick: () => setEditingId(t.id), style: {
-                    padding: "11px 13px", borderRadius: 9, marginBottom: 7, cursor: "pointer", fontSize: 12.5,
-                    background: editingId === t.id ? "rgba(95,191,135,0.13)" : C.panelAlt, border: `1px solid ${editingId === t.id ? "rgba(95,191,135,0.55)" : C.lineSoft}`,
-                } },
-                React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-                    React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 8 } },
-                        React.createElement(ChevronRight, { size: 13, color: C.textFaint }),
-                        React.createElement("span", { style: { fontWeight: 700 } }, t.name),
-                        React.createElement(Badge, { color: t.xiOrder.length === 11 ? C.accent2 : C.textFaint },
-                            t.xiOrder.length,
-                            "/11 XI")),
-                    React.createElement("button", { onClick: (e) => { e.stopPropagation(); removeTeam(t.id); }, style: { background: "none", border: "none", color: C.textFaint, cursor: "pointer" } },
-                        React.createElement(X, { size: 14 }))),
-                t.groundName && React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginTop: 5, display: "flex", alignItems: "center", gap: 4, paddingLeft: 21 } },
-                    React.createElement(Home, { size: 10 }),
-                    t.groundName))))),
-        React.createElement("div", { style: card }, !editing ? (React.createElement(EmptyState, { icon: Shield, text: "Select a team to set its home ground, squad, and Playing XI." })) : (React.createElement("div", null,
-            React.createElement("div", { style: sectionTitle }, editing.name),
-            React.createElement("div", { style: { background: C.panelAlt, borderRadius: 9, padding: 14, marginBottom: 16, border: `1px solid ${C.lineSoft}` } },
-                React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
-                    React.createElement(Home, { size: 11 }),
-                    " Home Ground"),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
-                    React.createElement("input", { placeholder: "Venue name (e.g. Riverside Oval)", style: input, value: editing.groundName || "", onChange: (e) => updateTeam(editing.id, { groundName: e.target.value }) }),
-                    React.createElement("select", { style: input, value: editing.homeGroundId || "", onChange: (e) => updateTeam(editing.id, { homeGroundId: e.target.value }) },
-                        React.createElement("option", { value: "" }, "No pitch conditions linked"),
-                        data.pitches.map((p) => React.createElement("option", { key: p.id, value: p.id }, p.name)))),
-                editingGround && React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginTop: 8 } },
-                    "Matches at ",
-                    editing.groundName || "this venue",
-                    " will default to ",
-                    editingGround.name,
-                    " conditions.")),
-            React.createElement("div", { style: { fontSize: 11, color: C.textFaint, marginBottom: 10, lineHeight: 1.5 } }, "Check a player into the squad, then tap \"+ XI\" in order to build the batting line-up. A player already on another team's squad is locked here. XI changes are allowed during an active tournament; completed match scorecards keep their original results."),
-            React.createElement("div", { style: { maxHeight: 380, overflowY: "auto" } },
-                data.players.length === 0 && React.createElement(EmptyState, { icon: Users, text: "Add players in the Players tab first." }),
-                data.players.map((p) => {
-                    const inSquad = editing.squad.includes(p.id);
-                    const owner = getOwner(p.id, data.teams, editing.id);
-                    const locked = !!owner;
-                    const xiIdx = editing.xiOrder.indexOf(p.id);
-                    return (React.createElement("div", { key: p.id, style: { display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12, opacity: locked ? 0.4 : 1 } },
-                        React.createElement("input", { type: "checkbox", disabled: locked, checked: inSquad, onChange: (e) => {
-                                const inSquadNow = e.target.checked;
-                                const squad = inSquadNow ? [...editing.squad, p.id] : editing.squad.filter((id) => id !== p.id);
-                                const xiOrder = inSquadNow ? editing.xiOrder : editing.xiOrder.filter((id) => id !== p.id);
-                                updateTeam(editing.id, { squad, xiOrder });
-                            } }),
-                        React.createElement(Avatar, { name: p.name, size: 20 }),
-                        React.createElement("span", { style: { flex: 1 } },
-                            p.name,
-                            " ",
-                            React.createElement("span", { style: { color: C.textDim } },
-                                "(Avg ",
-                                getBattingProfile(p).avg,
-                                ", SR ",
-                                getBattingProfile(p).sr,
-                                getBattingProfile(p).auto ? ", auto tailender" : "",
-                                p.isBowler ? `, ${p.bowlingType || "bowling type not supplied"}` : "",
-                                ")"),
-                            locked && React.createElement("span", { style: { color: C.red, fontSize: 10.5, marginLeft: 6 } },
-                                "\u2014 in ",
-                                owner)),
-                        inSquad && !locked && (xiIdx === -1
-                            ? React.createElement("button", { onClick: () => updateTeam(editing.id, { xiOrder: [...editing.xiOrder, p.id] }), disabled: editing.xiOrder.length >= 11, style: { ...btn, padding: "3px 9px", opacity: editing.xiOrder.length >= 11 ? 0.3 : 1 } }, "+ XI")
-                            : React.createElement(React.Fragment, null,
-                                React.createElement(Badge, { color: C.accent2 },
-                                    "#",
-                                    xiIdx + 1),
-                                React.createElement("button", { onClick: () => updateTeam(editing.id, { xiOrder: editing.xiOrder.filter((id) => id !== p.id) }), style: { ...btn, padding: "3px 9px" } }, "remove")))));
-                })))))));
+ const [name,setName]=useState(''); const [editingId,setEditingId]=useState(data.teams[0]?.id||''); const [dragId,setDragId]=useState(null);
+ const addTeam=()=>{if(!name.trim()||data.teams.length>=10)return;const t={id:nid('t'),name:name.trim(),squad:[],xiOrder:[],groundName:'',homeGroundId:'',bowlingRotation:{}};update({...data,teams:[...data.teams,t]});setName('');setEditingId(t.id)};
+ const editing=data.teams.find(t=>t.id===editingId); const updateTeam=(id,patch)=>update({...data,teams:data.teams.map(t=>t.id===id?{...t,...patch}:t)});
+ const removeTeam=id=>update({...data,teams:data.teams.filter(t=>t.id!==id)});
+ const reorder=(from,to)=>{if(!editing||from===to)return;const arr=[...editing.xiOrder],idx=arr.indexOf(from);arr.splice(idx,1);const target=arr.indexOf(to);arr.splice(target<0?arr.length:target,0,from);updateTeam(editing.id,{xiOrder:arr})};
+ return React.createElement('div',{className:'grid-responsive',style:{display:'grid',gridTemplateColumns:'300px 1fr',gap:18}},React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Shield,null),' Teams'),React.createElement('div',{style:{display:'flex',gap:6,marginBottom:12}},React.createElement('input',{style:input,value:name,onChange:e=>setName(e.target.value),placeholder:'Team name'}),React.createElement('button',{style:btnPrimary,onClick:addTeam},'+')),data.teams.map(t=>React.createElement('div',{key:t.id,onClick:()=>setEditingId(t.id),style:{padding:11,border:`1px solid ${editingId===t.id?C.accent2:C.lineSoft}`,borderRadius:8,marginBottom:7,cursor:'pointer'}},React.createElement('b',null,t.name),React.createElement('span',{style:{float:'right'}},t.xiOrder.length+'/11')))),editing?React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},editing.name,' · Playing XI'),React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:10}},'Drag any player in the XI list to swap positions. WK is optional.'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:15}},React.createElement('input',{style:input,placeholder:'Venue',value:editing.groundName||'',onChange:e=>updateTeam(editing.id,{groundName:e.target.value})}),React.createElement('select',{style:input,value:editing.homeGroundId||'',onChange:e=>updateTeam(editing.id,{homeGroundId:e.target.value})},React.createElement('option',{value:''},'No pitch linked'),data.pitches.map(p=>React.createElement('option',{key:p.id,value:p.id},p.name)))),React.createElement('div',{style:{marginBottom:14}},editing.xiOrder.map((id,i)=>{const p=data.players.find(x=>x.id===id);return React.createElement('div',{key:id,draggable:true,onDragStart:()=>setDragId(id),onDragOver:e=>e.preventDefault(),onDrop:()=>{reorder(dragId,id);setDragId(null)},style:{display:'flex',alignItems:'center',gap:8,padding:9,marginBottom:5,border:`1px solid ${C.lineSoft}`,borderRadius:8,background:C.panelAlt,cursor:'grab'}},React.createElement('span',{style:{color:C.accent,fontWeight:700,width:24}},i+1),React.createElement(Avatar,{name:p?.name||'?' ,size:22}),React.createElement('span',{style:{flex:1}},p?.name||'?'),p?.isWK&&React.createElement(Badge,{color:C.accent},'WK'),p?.isBowler&&React.createElement(Badge,{color:C.accent2},'BOWLER'),React.createElement('button',{style:btn,onClick:()=>updateTeam(editing.id,{xiOrder:editing.xiOrder.filter(x=>x!==id)})},'Remove'))})),React.createElement('div',{style:{borderTop:`1px solid ${C.line}`,paddingTop:10}},React.createElement('div',{style:eyebrow},'Squad'),data.players.map(p=>{const inSquad=editing.squad.includes(p.id);const owner=data.teams.find(t=>t.id!==editing.id&&t.squad.includes(p.id));return React.createElement('label',{key:p.id,style:{display:'flex',gap:8,alignItems:'center;padding:6px 0',opacity:owner?0.45:1}},React.createElement('input',{type:'checkbox',disabled:!!owner,checked:inSquad,onChange:e=>{const squad=e.target.checked?[...editing.squad,p.id]:editing.squad.filter(x=>x!==p.id);const xiOrder=e.target.checked?editing.xiOrder:editing.xiOrder.filter(x=>x!==p.id);updateTeam(editing.id,{squad,xiOrder})}}),p.name,owner&&React.createElement('span',{style:{fontSize:10,color:C.red}},`(${owner.name})`))}))) : React.createElement(EmptyState,{icon:Shield,text:'Create/select a team.'}));
 }
 // ============================================================================
 // ROTATION + SCORECARD
@@ -1148,12 +1182,105 @@ function downloadBlob(blob, filename) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function buildScorecardExportHTML(result, teamAName, teamBName) {
-    const inn = (x, title) => `<section><h2>${escapeHtml(title)} — ${x.totalRuns}/${x.totalWkts}</h2><h3>Batting</h3><table><tr><th>Player</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th></tr>${x.battingCard.map(b => `<tr><td>${escapeHtml(b.name)}${!b.out && b.balls > 0 ? " *" : ""}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls ? ((b.runs / b.balls) * 100).toFixed(1) : "-"}</td><td>${b.fours}</td><td>${b.sixes}</td></tr>`).join("")}</table><h3>Bowling</h3><table><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr>${x.bowlingCard.map(b => `<tr><td>${escapeHtml(b.name)}</td><td>${(b.balls / 6).toFixed(1)}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${b.balls ? (b.runs / (b.balls / 6)).toFixed(2) : "-"}</td></tr>`).join("")}</table></section>`;
-    return `<div class="export-card"><h1>T20 LEAGUE SIMULATOR</h1><p class="sub">${escapeHtml(teamAName)} vs ${escapeHtml(teamBName)} — ${escapeHtml(result.margin)}</p>${inn(result.inn1, teamAName + " innings")}${inn(result.inn2, teamBName + " innings")}</div>`;
+function buildScorecardExportHTML(result,teamAName,teamBName){
+ const inn=(x,title)=>`<section><h2>${escapeHtml(title)} — ${x.totalRuns}/${x.totalWkts}</h2><h3>Batting</h3><table><tr><th>Player</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr>${x.battingCard.map(b=>`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${escapeHtml(b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out')}</td></tr>`).join('')}</table><h3>Bowling</h3><table><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr>${x.bowlingCard.map(b=>`<tr><td>${escapeHtml(b.name)}</td><td>${(b.balls/6).toFixed(1)}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${b.balls?(b.runs/(b.balls/6)).toFixed(2):'-'}</td></tr>`).join('')}</table>${x.fallOfWickets?.length?`<h3>Fall of Wickets</h3>${x.fallOfWickets.map(f=>`<p>${f.wicket}. ${escapeHtml(f.batter)} — ${f.score} at ${f.over} — ${escapeHtml(f.dismissal?.type||'Wicket')}</p>`).join('')}`:''}${x.partnerships?.length?`<h3>Partnerships</h3><p>${x.partnerships.map((p,i)=>`${i+1}. ${p.runs} (${p.balls} balls)`).join(' · ')}</p>`:''}</section>`;
+ return `<div class="export-card"><h1>T20 CRICKET LEAGUE SIMULATOR</h1><p class="sub">${escapeHtml(teamAName)} vs ${escapeHtml(teamBName)} — ${escapeHtml(result.margin)}</p>${result.toss?`<p><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}.</p>`:''}${result.playerOfMatch?`<p><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</p>`:''}${inn(result.inn1,teamAName+' innings')}${inn(result.inn2,teamBName+' innings')}${result.superOver?`<section><h2>SUPER OVER</h2><p>${escapeHtml(teamAName)} ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts} · ${escapeHtml(teamBName)} ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</p></section>`:''}</div>`;
 }
 function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
-function exportScorecardPDF() { document.body.classList.add("printing-scorecard"); window.setTimeout(() => { window.print(); window.setTimeout(() => document.body.classList.remove("printing-scorecard"), 500); }, 50); }
+function pdfEscape(s) {
+    return String(s ?? '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\r?\n/g, ' ');
+}
+function pdfAscii(s) {
+    return String(s ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'?');
+}
+function makeSimplePDF(lines, filename) {
+    const pageW = 595, pageH = 842, left = 38, top = 46, bottom = 42;
+    const fontSize = 8.6, lineH = 11.5;
+    const maxChars = 92;
+    const wrapped = [];
+    lines.forEach(raw => {
+        const line = pdfAscii(raw);
+        if (!line) { wrapped.push(''); return; }
+        let rest = line;
+        while (rest.length > maxChars) {
+            let cut = rest.lastIndexOf(' ', maxChars);
+            if (cut < 35) cut = maxChars;
+            wrapped.push(rest.slice(0, cut));
+            rest = rest.slice(cut).trim();
+        }
+        wrapped.push(rest);
+    });
+    const perPage = Math.floor((pageH - top - bottom) / lineH);
+    const pages = [];
+    for (let i=0;i<wrapped.length;i+=perPage) pages.push(wrapped.slice(i,i+perPage));
+    if (!pages.length) pages.push(['']);
+    const objects = [];
+    const add = body => { objects.push(body); return objects.length; };
+    const catalog = add('<< /Type /Catalog /Pages 2 0 R >>');
+    const pagesObj = 2;
+    const pageIds = [];
+    const fontId = 3;
+    add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    pages.forEach((pageLines) => {
+        const pageId = objects.length + 1;
+        pageIds.push(pageId);
+        let content = `BT /F1 ${fontSize} Tf ${left} ${pageH-top} Td 0 0 0 rg\n`;
+        pageLines.forEach((line, idx) => {
+            if (idx > 0) content += `0 -${lineH} Td\n`;
+            content += `(${pdfEscape(line)}) Tj\n`;
+        });
+        content += 'ET';
+        const streamId = pageId + 1;
+        add(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${streamId} 0 R >>`);
+        add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    });
+    objects[1] = `<< /Type /Pages /Kids [${pageIds.map(id=>id+' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+    let pdf = '%PDF-1.4\n%âãÏÓ\n';
+    const offsets = [0];
+    objects.forEach((obj,i) => { offsets[i+1] = pdf.length; pdf += `${i+1} 0 obj\n${obj}\nendobj\n`; });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
+    for (let i=1;i<=objects.length;i++) pdf += String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+    pdf += `trailer\n<< /Size ${objects.length+1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    downloadBlob(new Blob([pdf], {type:'application/pdf'}), filename);
+}
+function exportScorecardPDF(result, teamAName, teamBName) {
+    const lines = [];
+    lines.push('T20 CRICKET LEAGUE SIMULATOR');
+    lines.push(`${teamAName} vs ${teamBName}`);
+    lines.push(`Result: ${result.margin || ''}`);
+    if (result.toss) lines.push(`Toss: ${result.toss.winnerName} won and chose to ${result.toss.decision}.`);
+    if (result.playerOfMatch) lines.push(`Player of the Match: ${result.playerOfMatch.name}`);
+    lines.push('');
+    const addInnings = (x, title) => {
+        lines.push(`${title}: ${x.totalRuns}/${x.totalWkts}`);
+        lines.push('BATTER | R | B | SR | 4S | 6S | DISMISSAL');
+        (x.battingCard || []).forEach(b => {
+            const sr = b.balls ? ((b.runs/b.balls)*100).toFixed(1) : '-';
+            const dis = b.dismissal ? `${b.dismissal.type || 'Wicket'}${b.dismissal.bowler ? ' b '+b.dismissal.bowler : ''}${b.dismissal.fielder ? ' - '+b.dismissal.fielder : ''}` : 'not out';
+            lines.push(`${b.name}${!b.out && b.balls>0 ? ' *' : ''} | ${b.runs} | ${b.balls} | ${sr} | ${b.fours} | ${b.sixes} | ${dis}`);
+        });
+        lines.push('BOWLER | O | R | W | ECON');
+        (x.bowlingCard || []).forEach(b => {
+            const overs = (b.balls/6).toFixed(1);
+            const econ = b.balls ? (b.runs/(b.balls/6)).toFixed(2) : '-';
+            lines.push(`${b.name} | ${overs} | ${b.runs} | ${b.wkts} | ${econ}`);
+        });
+        if (x.fallOfWickets?.length) {
+            lines.push('FALL OF WICKETS');
+            x.fallOfWickets.forEach(f => lines.push(`${f.wicket}. ${f.batter} - ${f.score} at ${f.over} - ${f.dismissal?.type || 'Wicket'}`));
+        }
+        lines.push('');
+    };
+    addInnings(result.inn1, teamAName+' innings');
+    addInnings(result.inn2, teamBName+' innings');
+    if (result.superOver) {
+        lines.push('SUPER OVER');
+        lines.push(`${teamAName}: ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts}`);
+        lines.push(`${teamBName}: ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}`);
+    }
+    makeSimplePDF(lines, `${teamAName}-vs-${teamBName}-scorecard.pdf`);
+}
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
@@ -1187,88 +1314,48 @@ function VerificationTable({ verification, teamName }) {
                     React.createElement("td", { style: { textAlign: "center" } }, adjusted),
                     React.createElement("td", { style: { textAlign: "center", color: C.accent2, fontWeight: 700 } }, bowl ? bowl.class.archetype : v.batTier)); })))));
 }
-function Scorecard({ innings, title }) {
-    return (React.createElement("div", { style: { ...card, flex: 1, minWidth: 270, padding: 18 } },
-        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12, borderBottom: `1px solid ${C.line}`, paddingBottom: 10 } },
-            React.createElement("span", { style: { fontWeight: 700, color: C.accent, fontSize: 13.5 } }, title),
-            React.createElement("span", { style: { fontFamily: serif, fontSize: 19, fontWeight: 700 } },
-                innings.totalRuns,
-                React.createElement("span", { style: { color: C.textFaint, fontSize: 14 } },
-                    "/",
-                    innings.totalWkts))),
-        React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
-            React.createElement("thead", null,
-                React.createElement("tr", { style: eyebrow },
-                    React.createElement("th", { style: { textAlign: "left", fontWeight: 700 } }, "Batter"),
-                    React.createElement("th", null, "R"),
-                    React.createElement("th", null, "B"),
-                    React.createElement("th", null, "SR"),
-                    React.createElement("th", null, "4s"),
-                    React.createElement("th", null, "6s"))),
-            React.createElement("tbody", null, innings.battingCard.map((b) => (React.createElement("tr", { key: b.id, style: { borderTop: `1px solid ${C.lineSoft}` } },
-                React.createElement("td", { style: { padding: "5px 0" } },
-                    b.name,
-                    !b.out && b.balls > 0 ? " *" : ""),
-                React.createElement("td", { style: { textAlign: "center", fontWeight: 700 } }, b.runs),
-                React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, b.balls),
-                React.createElement("td", { style: { textAlign: "center", color: C.accent } }, b.balls ? ((b.runs / b.balls) * 100).toFixed(1) : "-"),
-                React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, b.fours),
-                React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, b.sixes)))))),
-        React.createElement("div", { style: { fontWeight: 700, color: C.accent, margin: "14px 0 7px", fontSize: 12.5 } }, "Bowling"),
-        React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
-            React.createElement("thead", null,
-                React.createElement("tr", { style: eyebrow },
-                    React.createElement("th", { style: { textAlign: "left", fontWeight: 700 } }, "Bowler"),
-                    React.createElement("th", null, "O"),
-                    React.createElement("th", null, "R"),
-                    React.createElement("th", null, "W"),
-                    React.createElement("th", null, "Econ"))),
-            React.createElement("tbody", null, innings.bowlingCard.map((b) => (React.createElement("tr", { key: b.id, style: { borderTop: `1px solid ${C.lineSoft}` } },
-                React.createElement("td", { style: { padding: "5px 0" } }, b.name),
-                React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, (b.balls / 6).toFixed(1)),
-                React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, b.runs),
-                React.createElement("td", { style: { textAlign: "center" } }, b.wkts),
-                React.createElement("td", { style: { textAlign: "center", color: C.accent } }, b.balls ? (b.runs / (b.balls / 6)).toFixed(2) : "-")))))),
-        innings.partnerships?.length > 0 && React.createElement("div", { style: { marginTop: 14 } },
-            React.createElement("div", { style: { fontWeight: 700, color: C.accent, marginBottom: 6, fontSize: 12.5 } }, "Partnerships"),
-            React.createElement("div", { style: { fontSize: 10.5, color: C.textDim } }, innings.partnerships.map((p, i) => React.createElement("span", { key: i, style: { marginRight: 10 } },
-                i + 1,
-                ": ",
-                p.runs,
-                " (",
-                p.balls,
-                "b)")))),
-        innings.fallOfWickets?.length > 0 && React.createElement("div", { style: { marginTop: 10 } },
-            React.createElement("div", { style: { fontWeight: 700, color: C.accent, marginBottom: 6, fontSize: 12.5 } }, "Fall of Wickets"),
-            React.createElement("div", { style: { fontSize: 10.5, color: C.textDim } }, innings.fallOfWickets.map((f, i) => React.createElement("span", { key: i, style: { marginRight: 10 } },
-                f.wicket,
-                "-",
-                f.score,
-                " (",
-                f.batter,
-                ", ",
-                f.over,
-                ")"))))));
+function SimpleTable({headers,rows}){
+ return React.createElement('table',{style:{width:'100%',fontSize:11,borderCollapse:'collapse'}},
+  React.createElement('thead',null,React.createElement('tr',{style:eyebrow},headers.map((h,i)=>React.createElement('th',{key:i,style:{textAlign:'left',padding:5}},h)))),
+  React.createElement('tbody',null,rows.map((row,i)=>React.createElement('tr',{key:i,style:{borderTop:`1px solid ${C.lineSoft}`}},row.map((cell,j)=>React.createElement('td',{key:j,style:{padding:5}},cell)))))
+ );
 }
-// ============================================================================
-// PLAY MATCH TAB
-// ============================================================================
-function hasSuppliedNumber(v) { return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)); }
-function getTeamSimulationIssues(team, playerLookup) {
-    const xi = (team?.xiOrder || []).map((id) => playerLookup[id]).filter(Boolean);
-    const issues = [];
-    if (xi.length !== 11)
-        issues.push(`${team?.name || "Team"} must have exactly 11 players.`);
-    xi.forEach((p) => {
-        if (!p.isBowler && (!hasSuppliedNumber(p.avg) || !hasSuppliedNumber(p.sr)))
-            issues.push(`${p.name} has no supplied batting Average/SR.`);
-        if (p.isBowler && (!Number.isFinite(Number(p.bowlAvg)) || !Number.isFinite(Number(p.bowlSR)) || !Number.isFinite(Number(p.econ))))
-            issues.push(`${p.name} has incomplete supplied bowling statistics.`);
-        if (p.isBowler && !p.bowlingType)
-            issues.push(`${p.name} has no supplied bowling type.`);
-    });
-    return issues;
+function Scorecard({innings,title}){
+ const battingRows=innings.battingCard.map(b=>[
+   b.name+(!b.out&&b.balls>0?' *':''),
+   b.runs,b.balls,b.balls?((b.runs/b.balls)*100).toFixed(1):'-',b.fours,b.sixes,
+   b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out'
+ ]);
+ const bowlRows=innings.bowlingCard.map(b=>[b.name,(b.balls/6).toFixed(1),b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):'-']);
+ return React.createElement('div',{style:{...card,flex:1,minWidth:300,padding:14}},
+  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${C.line}`,paddingBottom:8}},
+   React.createElement('b',{style:{color:C.accent,fontSize:12}},title),
+   React.createElement('b',{style:{fontSize:18}},`${innings.totalRuns}/${innings.totalWkts}`)),
+  React.createElement('div',{style:{fontSize:10,color:C.textDim,marginTop:4}},`Overs: ${(innings.deliveries.length/6).toFixed(1)}`),
+  React.createElement('div',{style:{overflowX:'auto',marginTop:8}},React.createElement(SimpleTable,{headers:['Batter','R','B','SR','4s','6s','Dismissal'],rows:battingRows})),
+  React.createElement('div',{style:{fontWeight:700,color:C.accent,margin:'12px 0 6px',fontSize:11}},'Bowling'),
+  React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Bowler','O','R','W','Econ'],rows:bowlRows})),
+  innings.fallOfWickets?.length>0&&React.createElement('div',{style:{marginTop:10,fontSize:10,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Fall of Wickets'),innings.fallOfWickets.map(f=>React.createElement('div',{key:f.wicket},`${f.wicket}. ${f.batter} — ${f.score} (${f.over}) — ${f.dismissal?.type||'Wicket'}`)))
+ );
 }
+
+// ============================================================================
+// TOURNAMENTS TAB
+function tournamentFormatInfo(format,n){
+ const league=format==='double-round-robin'?n*(n-1):format==='groups-knockout'?(Math.ceil(n/2)*(Math.ceil(n/2)-1)/2+Math.floor(n/2)*(Math.floor(n/2)-1)/2):n*(n-1)/2;
+ const playoff=(format==='round-robin-playoffs'||format==='double-round-robin')?([7,8].includes(n)?2:([9,10].includes(n)?4:0)):format==='knockout'?Math.max(1,n-1):format==='groups-knockout'?3:0;
+ return {league,playoff,total:league+playoff};
+}
+function FormatGuide({format,n}){const x=tournamentFormatInfo(format,n);return React.createElement('div',{style:{...card,marginBottom:14,background:'linear-gradient(135deg,rgba(95,191,135,.12),rgba(224,184,90,.07))'}},React.createElement('div',{style:sectionTitle},React.createElement(Trophy,null),' Tournament Format Guide'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},[['Teams',n],['League matches',x.league],['Playoff matches',x.playoff],['Total scheduled',x.total]].map(([k,v])=>React.createElement('div',{key:k,style:{background:C.panelAlt,border:`1px solid ${C.lineSoft}`,borderRadius:8,padding:10}},React.createElement('div',{style:eyebrow},k),React.createElement('div',{style:{fontSize:20,fontWeight:800,color:C.accent}},v)))));}
+function computePlayerStats(data){const out=new Map(data.players.map(p=>[p.id,{id:p.id,name:p.name,matches:0,runs:0,balls:0,fours:0,sixes:0,outs:0,wkts:0,bowlRuns:0,bowlBalls:0,bestW:0,bestR:Infinity}]));(data.matches||[]).forEach(m=>{[m.inn1,m.inn2].forEach(inn=>{inn.battingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.runs+=b.runs;r.balls+=b.balls;r.fours+=b.fours;r.sixes+=b.sixes;if(b.out)r.outs++;});inn.bowlingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.wkts+=b.wkts;r.bowlRuns+=b.runs;r.bowlBalls+=b.balls;if(b.wkts>r.bestW||(b.wkts===r.bestW&&b.runs<r.bestR)){r.bestW=b.wkts;r.bestR=b.runs;}});});});return [...out.values()].map(r=>({...r,batAvg:r.outs?(r.runs/r.outs).toFixed(2):'-',sr:r.balls?(r.runs/r.balls*100).toFixed(2):'-',bowlAvg:r.wkts?(r.bowlRuns/r.wkts).toFixed(2):'-',econ:r.bowlBalls?(r.bowlRuns/(r.bowlBalls/6)).toFixed(2):'-',best:r.bestW?`${r.bestW}/${r.bestR}`:'-'}));}
+function PlayerStatsTab({data}){const rows=computePlayerStats(data);return React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Award,null),' Player Statistics'),React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Player','Matches','Runs','Bat Avg','SR','4s','6s','Wkts','Bowl Avg','Econ','Best'],rows:rows.map(r=>[r.name,r.matches,r.runs,r.batAvg,r.sr,r.fours,r.sixes,r.wkts,r.bowlAvg,r.econ,r.best])})));}
+function MatchViewer({m,onClose}){return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.84)',zIndex:30,overflowY:'auto',padding:20}},React.createElement('div',{className:'print-target',style:{maxWidth:1100,margin:'0 auto'}},React.createElement('div',{style:{...card,marginBottom:12}},React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},React.createElement('div',{style:sectionTitle},m.teamAName,' vs ',m.teamBName),React.createElement('button',{className:'no-print',style:btn,onClick:onClose},'Close')),React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',marginTop:6,fontSize:11}},React.createElement('span',{style:{color:C.accent2,fontWeight:700}},m.margin),m.toss&&React.createElement('span',{style:{color:C.textDim}},`Toss: ${m.toss.winnerName} won and chose to ${m.toss.decision}.`),m.playerOfMatch&&React.createElement('span',{style:{color:C.accent,fontWeight:700}},`Player of the Match: ${m.playerOfMatch.name}`))),React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},React.createElement(Scorecard,{innings:m.inn1,title:m.teamAName+' innings'}),React.createElement(Scorecard,{innings:m.inn2,title:m.teamBName+' innings'})),m.superOver&&React.createElement('div',{style:{...card,marginTop:10,padding:12}},React.createElement('div',{style:sectionTitle},'SUPER OVER'),React.createElement('div',{style:{fontSize:12}},`${m.teamAName}: ${m.superOver.teamA.totalRuns}/${m.superOver.teamA.totalWkts} · ${m.teamBName}: ${m.superOver.teamB.totalRuns}/${m.superOver.teamB.totalWkts}`)),React.createElement('button',{className:'no-print',style:{...btn,marginTop:10},onClick:()=>{document.body.classList.add('printing-scorecard');window.print();setTimeout(()=>document.body.classList.remove('printing-scorecard'),600)}},'Download / Print PDF')));}
+function ArchiveTab({data}){
+ const [selected,setSelected]=useState(null);
+ const rows=data.matches.map(m=>React.createElement('div',{key:m.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:12,borderBottom:`1px solid ${C.lineSoft}`}},React.createElement('div',null,React.createElement('b',null,`${m.teamAName} ${m.inn1.totalRuns}/${m.inn1.totalWkts} vs ${m.teamBName} ${m.inn2.totalRuns}/${m.inn2.totalWkts}`),React.createElement('div',{style:{fontSize:10.5,color:C.textDim}},m.margin,' · ',new Date(m.date).toLocaleString())),React.createElement('button',{style:btn,onClick:()=>setSelected(m)},'Open Scorecard')));
+ return React.createElement(React.Fragment,null,React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Clock,null),' Completed Match Archive'),data.matches.length?rows:React.createElement(EmptyState,{icon:Clock,text:'No completed matches yet.'})),selected&&React.createElement(MatchViewer,{m:selected,onClose:()=>setSelected(null)}));
+}
+function BackupRestore({data,update}){const ref=React.useRef(null);return React.createElement('div',{style:{...card,marginTop:16}},React.createElement('div',{style:sectionTitle},'Backup & Restore'),React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('button',{style:btn,onClick:()=>downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'t20-league-backup.json')},'Export Backup'),React.createElement('button',{style:btn,onClick:()=>ref.current?.click()},'Import Backup'),React.createElement('input',{ref,type:'file',accept:'application/json',style:{display:'none'},onChange:e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{update(normalizeStoredRotations({...EMPTY_DATA,...JSON.parse(r.result)}));alert('Backup restored.');}catch(err){alert('Invalid backup.');}};r.readAsText(f)}})));}
 function PlayMatchTab({ data, update, prefill }) {
     const readyTeams = data.teams.filter((t) => t.xiOrder.length === 11);
     const [teamAId, setTeamAId] = useState(prefill?.teamAId || "");
@@ -1308,13 +1395,14 @@ function PlayMatchTab({ data, update, prefill }) {
             const effRotB = completeRotation(teamRotationB, bowlersB);
             Object.entries(rotA).forEach(([over, id]) => { if (id) effRotA[over] = id; });
             Object.entries(rotB).forEach(([over, id]) => { if (id) effRotB[over] = id; });
+            const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+            if (existing && !window.confirm("This fixture already has a completed result. Resimulate it and make the new result the latest result?")) return;
             const r = playMatch(teamA, teamB, pitch, effRotA, effRotB, playerLookup);
             setResult(r);
-            const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
             const record = {
                 id: nid("m"), date: new Date().toISOString(), teamAId, teamBId, teamAName: teamA.name, teamBName: teamB.name,
                 pitchName: pitch.name, pitchCategory: pitch.category, inn1: r.inn1, inn2: r.inn2, winnerId: r.winnerId, margin: r.margin,
-                playerOfMatch: r.playerOfMatch, verification: r.verification,
+                playerOfMatch: r.playerOfMatch, verification: r.verification, toss: r.toss, superOver: r.superOver,
                 tournamentId: prefill?.tournamentId || null, fixtureId: prefill?.fixtureId || null,
                 resimulated: !!existing, resimulationOf: existing?.id || null,
             };
@@ -1383,9 +1471,9 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: exportScorecardPDF, style: btn },
+                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name), style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
-                    "Save / Print PDF"),
+                    "Save PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
                     React.createElement(ImageIcon, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save JPEG")),
@@ -1407,178 +1495,7 @@ function PlayMatchTab({ data, update, prefill }) {
                 ": ",
                 d.outcome === "W" ? "WICKET" : d.outcome))))))))))));
 }
-// ============================================================================
-// TOURNAMENTS TAB
-// ============================================================================
-function computePointsTable(tournament, matches, teams) {
-    const table = {};
-    tournament.teamIds.forEach((id) => { table[id] = { teamId: id, played: 0, won: 0, lost: 0, tied: 0, points: 0, runsFor: 0, oversFor: 0, runsAgainst: 0, oversAgainst: 0 }; });
-    tournamentMatches(matches, tournament.id).forEach((m) => {
-        const a = table[m.teamAId], b = table[m.teamBId];
-        if (!a || !b)
-            return;
-        a.played += 1;
-        b.played += 1;
-        const o1 = m.inn1.deliveries.length / 6;
-        const o2 = m.inn2.deliveries.length / 6;
-        a.runsFor += m.inn1.totalRuns;
-        a.oversFor += o1;
-        a.runsAgainst += m.inn2.totalRuns;
-        a.oversAgainst += o2;
-        b.runsFor += m.inn2.totalRuns;
-        b.oversFor += o2;
-        b.runsAgainst += m.inn1.totalRuns;
-        b.oversAgainst += o1;
-        if (m.winnerId === m.teamAId) {
-            a.won += 1;
-            a.points += 2;
-            b.lost += 1;
-        }
-        else if (m.winnerId === m.teamBId) {
-            b.won += 1;
-            b.points += 2;
-            a.lost += 1;
-        }
-        else {
-            a.tied += 1;
-            b.tied += 1;
-            a.points += 1;
-            b.points += 1;
-        }
-    });
-    return Object.values(table).map((r) => ({
-        ...r, teamName: teams.find((t) => t.id === r.teamId)?.name || "?",
-        nrr: r.oversFor && r.oversAgainst ? ((r.runsFor / r.oversFor) - (r.runsAgainst / r.oversAgainst)).toFixed(2) : "0.00",
-    })).sort((x, y) => y.points - x.points || parseFloat(y.nrr) - parseFloat(x.nrr));
-}
-function generateRoundRobin(teamIds) {
-    const ids = [...teamIds];
-    if (ids.length < 2)
-        return [];
-    if (ids.length % 2)
-        ids.push(null);
-    const rounds = ids.length - 1, half = ids.length / 2, fixtures = [];
-    let matchNo = 0;
-    for (let r = 0; r < rounds; r++) {
-        for (let i = 0; i < half; i++) {
-            const a = ids[i], b = ids[ids.length - 1 - i];
-            if (a && b) {
-                matchNo += 1;
-                fixtures.push({ id: nid("fx"), teamAId: a, teamBId: b, round: `Matchday ${r + 1}`, matchNo, played: false });
-            }
-        }
-        ids.splice(1, 0, ids.pop());
-    }
-    return fixtures;
-}
-function generateDoubleRoundRobin(teamIds) {
-    const first = generateRoundRobin(teamIds);
-    const second = first.map((f) => ({ ...f, id: nid("fx"), teamAId: f.teamBId, teamBId: f.teamAId, round: f.round.replace("Matchday", "Matchday 2nd Leg") }));
-    return [...first, ...second].map((f, i) => ({ ...f, matchNo: i + 1 }));
-}
-function nextPowerOfTwo(n) {
-    let p = 1;
-    while (p < n)
-        p *= 2;
-    return p;
-}
-function knockoutLabelForCount(n) {
-    if (n === 2)
-        return "Final";
-    if (n === 4)
-        return "Semi Finals";
-    if (n === 8)
-        return "Quarter Finals";
-    if (n === 16)
-        return "Round of 16";
-    return "Knockout Round";
-}
-function generateKnockoutInitial(teamIds) {
-    const ids = [...teamIds];
-    if (ids.length < 2)
-        return { fixtures: [], stage: "Final", byeTeamIds: [] };
-    const size = nextPowerOfTwo(ids.length);
-    const prelimMatches = ids.length - size / 2;
-    if (prelimMatches <= 0) {
-        const fixtures = [];
-        for (let i = 0; i < ids.length; i += 2)
-            fixtures.push({ id: nid("fx"), teamAId: ids[i], teamBId: ids[i + 1], round: knockoutLabelForCount(ids.length), played: false });
-        return { fixtures: fixtures.map((f, i) => ({ ...f, matchNo: i + 1 })), stage: knockoutLabelForCount(ids.length), byeTeamIds: [] };
-    }
-    const fixtures = [];
-    for (let i = 0; i < prelimMatches * 2; i += 2) {
-        fixtures.push({ id: nid("fx"), teamAId: ids[i], teamBId: ids[i + 1], round: "Preliminary Round", matchNo: fixtures.length + 1, played: false });
-    }
-    return { fixtures, stage: "Preliminary Round", byeTeamIds: ids.slice(prelimMatches * 2) };
-}
-function getWinnersForFixtures(fixtures, matches) {
-    return fixtures.map((f) => getLatestFixtureMatch(matches, f.id)?.winnerId).filter(Boolean);
-}
-function playoffConfigForCount(n) {
-    if (n === 7 || n === 8) return { fixtures: [
-        { teamARef: "RANK2", teamBRef: "RANK3", round: "Qualifier" },
-        { teamARef: "RANK1", teamBRef: "WINNER:Qualifier", round: "Final" },
-    ]};
-    if (n === 9 || n === 10) return { fixtures: [
-        { teamARef: "RANK1", teamBRef: "RANK2", round: "Qualifier 1" },
-        { teamARef: "RANK3", teamBRef: "RANK4", round: "Eliminator" },
-        { teamARef: "LOSER:Qualifier 1", teamBRef: "WINNER:Eliminator", round: "Qualifier 2" },
-        { teamARef: "WINNER:Qualifier 1", teamBRef: "WINNER:Qualifier 2", round: "Final" },
-    ]};
-    return null;
-}
-function makeAutoPlayoffFixtures(teamCount, leagueMatchCount) {
-    const cfg = playoffConfigForCount(teamCount);
-    if (!cfg) return [];
-    return cfg.fixtures.map((f, i) => ({ id: nid("fx"), teamAId: null, teamBId: null, teamARef: f.teamARef, teamBRef: f.teamBRef, round: f.round, matchNo: leagueMatchCount + i + 1, played: false }));
-}
-function playoffTeamId(ref, tn, matches, teams) {
-    if (!ref) return null;
-    if (ref.startsWith("RANK")) {
-        const mainDone = (tn.fixtures || []).length > 0 && (tn.fixtures || []).every(f => !!getLatestFixtureMatch(matches, f.id));
-        if (!mainDone) return null;
-        return computePointsTable(tn, matches, teams)[Number(ref.slice(4)) - 1]?.teamId || null;
-    }
-    const m = ref.match(/^(WINNER|LOSER):(.+)$/);
-    if (!m) return null;
-    const fx = (tn.playoffFixtures || []).find(f => f.round === m[2]);
-    const result = fx ? getLatestFixtureMatch(matches, fx.id) : null;
-    if (!result || !result.winnerId) return null;
-    return m[1] === "WINNER" ? result.winnerId : (result.teamAId === result.winnerId ? result.teamBId : result.teamAId);
-}
-function resolvePlayoffFixture(fx, tn, matches, teams) {
-    if (!fx?.teamARef && !fx?.teamBRef) return fx;
-    return { ...fx, teamAId: playoffTeamId(fx.teamARef, tn, matches, teams), teamBId: playoffTeamId(fx.teamBRef, tn, matches, teams) };
-}
-function migrateAutoPlayoffs(data) {
-    let changed = false;
-    const tournaments = data.tournaments.map(tn => {
-        const eligible = (tn.format === "double-round-robin" || tn.format === "round-robin-playoffs") && [7,8,9,10].includes((tn.teamIds || []).length);
-        if (!eligible || (tn.playoffFixtures || []).length) return tn;
-        changed = true;
-        return { ...tn, playoffFixtures: makeAutoPlayoffFixtures(tn.teamIds.length, (tn.fixtures || []).length) };
-    });
-    return changed ? { ...data, tournaments } : data;
-}
-function generateNextKnockoutRound(tn, matches) {
-    const current = tn.knockoutStage || "Preliminary Round";
-    const currentFixtures = (tn.playoffFixtures || []).filter((f) => f.round === current);
-    if (!currentFixtures.length || !currentFixtures.every((f) => matches.some((m) => m.fixtureId === f.id)))
-        return null;
-    const winners = getWinnersForFixtures(currentFixtures, matches);
-    const bye = current === "Preliminary Round" ? (tn.knockoutByeTeamIds || []) : [];
-    const teams = [...winners, ...bye];
-    if (teams.length < 2)
-        return null;
-    const nextStage = knockoutLabelForCount(teams.length);
-    const fixtures = [];
-    for (let i = 0; i < teams.length; i += 2) {
-        if (!teams[i + 1])
-            continue;
-        fixtures.push({ id: nid("fx"), teamAId: teams[i], teamBId: teams[i + 1], round: nextStage, matchNo: fixtures.length + 1, played: false });
-    }
-    return { fixtures, stage: nextStage };
-}
+
 function TournamentsTab({ data, update, onPlayFixture }) {
     const [name, setName] = useState("");
     const [selectedTeams, setSelectedTeams] = useState([]);
@@ -1695,6 +1612,7 @@ function TournamentsTab({ data, update, onPlayFixture }) {
                 readyTeams.map((t) => (React.createElement("label", { key: t.id, style: { display: "flex", gap: 6, alignItems: "center", fontSize: 12, padding: "4px 0" } },
                     React.createElement("input", { type: "checkbox", checked: selectedTeams.includes(t.id), disabled: !selectedTeams.includes(t.id) && selectedTeams.length >= 10, onChange: (e) => setSelectedTeams(e.target.checked ? [...selectedTeams, t.id] : selectedTeams.filter((id) => id !== t.id)) }),
                     t.name)))),
+            React.createElement(FormatGuide, { format: format, n: selectedTeams.length || 2 }),
             React.createElement("button", { onClick: createTournament, style: btnPrimary }, "Create Tournament"),
             React.createElement("div", { style: { marginTop: 18 } }, data.tournaments.map((t) => (React.createElement("div", { key: t.id, onClick: () => setOpenId(t.id), style: { padding: "10px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12.5, marginBottom: 6, background: openId === t.id ? "rgba(95,191,135,0.13)" : C.panelAlt, border: `1px solid ${openId === t.id ? "rgba(95,191,135,0.55)" : C.lineSoft}`, display: "flex", alignItems: "center", gap: 7 } },
                 React.createElement(Trophy, { size: 13, color: C.accent }),
@@ -1863,45 +1781,7 @@ function RecordsTab({ data }) {
 // ============================================================================
 // HISTORY TAB
 // ============================================================================
-function HistoryTab({ data }) {
-    return (React.createElement("div", { style: card },
-        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 } },
-            React.createElement("div", { style: sectionTitle },
-                React.createElement(Clock, { size: 16 }),
-                " Match History"),
-            React.createElement("span", { style: eyebrow },
-                data.matches.length,
-                " played")),
-        data.matches.length === 0 && React.createElement(EmptyState, { icon: Clock, text: "No matches played yet." }),
-        data.matches.map((m) => (React.createElement("div", { key: m.id, style: { padding: "11px 4px", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
-            React.createElement("div", { style: { fontWeight: 600 } },
-                m.teamAName,
-                " ",
-                m.inn1.totalRuns,
-                "/",
-                m.inn1.totalWkts,
-                " ",
-                React.createElement("span", { style: { color: C.textFaint, fontWeight: 400 } }, "vs"),
-                " ",
-                m.teamBName,
-                " ",
-                m.inn2.totalRuns,
-                "/",
-                m.inn2.totalWkts),
-            React.createElement("div", { style: { color: C.accent2, fontSize: 11, marginTop: 3, fontWeight: 600 } },
-                m.margin,
-                " ",
-                m.resimulated && React.createElement(Badge, { color: C.red }, "RESIMULATED"),
-                " ",
-                React.createElement("span", { style: { color: C.textFaint, fontWeight: 400 } },
-                    " \u00B7 ",
-                    m.pitchName,
-                    " \u00B7 ",
-                    new Date(m.date).toLocaleDateString())))))));
-}
-// ============================================================================
-// APP
-// ============================================================================
+function HistoryTab({data,update}){return React.createElement(React.Fragment,null,React.createElement(ArchiveTab,{data}),React.createElement(BackupRestore,{data,update}));}
 function App() {
     const [data, setData] = useState(null);
     const [tab, setTab] = useState("players");
@@ -1925,6 +1805,9 @@ function App() {
             React.createElement("style", null, `@keyframes spin { to { transform: rotate(360deg); } }`)));
     const TABS = [
         { key: "players", label: "Players", icon: Users },
+        { key: "addplayer", label: "Add Player", icon: Plus },
+        { key: "addteam", label: "Add Team", icon: Shield },
+        { key: "playerstats", label: "Player Stats", icon: Award },
         { key: "pitches", label: "Pitches", icon: MapPin },
         { key: "teams", label: "Teams", icon: Shield },
         { key: "play", label: "Play Match", icon: PlayCircle },
@@ -1954,16 +1837,20 @@ function App() {
                         React.createElement(RotateCcw, { size: 12, style: { verticalAlign: -2, marginRight: 4 } }),
                         "Reset"))),
             React.createElement("style", null, `@keyframes spin { to { transform: rotate(360deg); } } select option { background: ${C.panelAlt}; color: ${C.text}; }`),
+            React.createElement("div", { style: { display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:18 } }, [["Teams",data.teams.length], ["Players",data.players.length], ["Matches",data.matches.length], ["Tournaments",data.tournaments.length]].map(([k,v])=>React.createElement("div",{key:k,style:{...card,padding:12}},React.createElement("div",{style:eyebrow},k),React.createElement("div",{style:{fontSize:22,fontWeight:800,color:C.accent}},v)))),
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap", borderBottom: `1px solid ${C.line}`, paddingBottom: 16 } }, TABS.map((t) => React.createElement(Tab, { key: t.key, label: t.label, icon: t.icon, active: tab === t.key, onClick: () => { setTab(t.key); if (t.key !== "play")
                     setPrefill(null); } }))),
             tab === "players" && React.createElement(PlayersTab, { data: data, update: update }),
+            tab === "addplayer" && React.createElement(AddPlayerTab, { data: data, update: update }),
+            tab === "addteam" && React.createElement(AddTeamTab, { data: data, update: update }),
+            tab === "playerstats" && React.createElement(PlayerStatsTab, { data: data }),
             tab === "pitches" && React.createElement(PitchesTab, { data: data, update: update }),
             tab === "teams" && React.createElement(TeamsTab, { data: data, update: update }),
             tab === "play" && React.createElement(PlayMatchTab, { data: data, update: update, prefill: prefill }),
             tab === "tournaments" && React.createElement(TournamentsTab, { data: data, update: update, onPlayFixture: (pf) => { setPrefill(pf); setTab("play"); } }),
             tab === "schedule" && React.createElement(ScheduleTab, { data: data, onPlayFixture: (pf) => { setPrefill(pf); setTab("play"); } }),
             tab === "records" && React.createElement(RecordsTab, { data: data }),
-            tab === "history" && React.createElement(HistoryTab, { data: data }))));
+            tab === "history" && React.createElement(HistoryTab, { data: data, update: update }))));
 }
 document.getElementById("startup").style.display = "none";
 ReactDOM.render(React.createElement(App, null), document.getElementById('root'));
