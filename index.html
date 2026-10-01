@@ -542,7 +542,7 @@ function parsePlayingXIText(text) {
         if (!header)
             return;
         const teamName = header[1].trim();
-        const rotationMarker = block.search(/^\s*\[[^\]]+\]\s*ROTATION\s+LOCK\s*\|?\s*$/im);
+        const rotationMarker = block.search(/^\s*\[[^\]]+\]\s*(?:BOWLING\s+ROTATION|ROTATION\s+LOCK)\s*\|?\s*$/im);
         const xiText = rotationMarker >= 0 ? block.slice(header.index + header[0].length, rotationMarker) : block.slice(header.index + header[0].length);
         const rotationText = rotationMarker >= 0 ? block.slice(rotationMarker) : "";
         const lines = xiText.split("\n");
@@ -613,12 +613,13 @@ function parsePlayingXIText(text) {
         const rotation = {};
         const rotationLines = rotationText.split("\n");
         rotationLines.forEach((raw) => {
-            const m = raw.trim().match(/^#?\s*(\d+)\s*\(([^)]+)\)\s*:\s*(.+)$/);
+            const m = raw.trim().match(/^#?\s*(\d+)\s+(?:\(([^)]+)\)|([^:]+))\s*:\s*(.+)$/);
             if (!m)
                 return;
-            const playerName = m[2].trim();
-            const player = players.find((p) => p.name.toLowerCase() === playerName.toLowerCase()) || players.find((p) => p.name.toLowerCase().includes(playerName.toLowerCase()));
-            const overs = m[3].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
+            const playerNumber = Number(m[1]);
+            const playerName = (m[2] || m[3] || "").trim();
+            const player = players.find((p) => p.order === playerNumber) || players.find((p) => p.name.toLowerCase() === playerName.toLowerCase()) || players.find((p) => p.name.toLowerCase().includes(playerName.toLowerCase()));
+            const overs = m[4].split(",").map((x) => Number(x.trim())).filter((x) => Number.isInteger(x) && x >= 1 && x <= 20);
             if (!player) {
                 warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`);
                 return;
@@ -636,7 +637,9 @@ function parsePlayingXIText(text) {
         });
         if (Object.keys(rotation).length !== 20)
             warnings.push(`${teamName}: rotation lock covers ${Object.keys(rotation).length}/20 overs.`);
-        teams.push({ name: teamName, players, rotation });
+        const optionsMatch = rotationText.match(/(?:^|\n)\s*BOWLING\s+OPTIONS\s*:\s*([^\n]+)/i);
+        const bowlingOptions = optionsMatch ? optionsMatch[1].split(/[•,]/).map((x) => x.trim()).filter(Boolean) : [];
+        teams.push({ name: teamName, players, rotation, bowlingOptions });
     });
     if (!teams.length)
         warnings.push("No [TEAM] PLAYING XI header was detected.");
