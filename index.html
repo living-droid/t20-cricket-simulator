@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#081410"><title>T20 Cricket League Simulator</title><style>*{box-sizing:border-box}html,body,#root{margin:0;min-height:100%;background:#081410}body{overflow-x:hidden}button,input,select{font:inherit}@media(max-width:760px){.desktop-only{display:none!important}.mobile-stack{grid-template-columns:1fr!important}.mobile-scroll{overflow-x:auto}.mobile-full{width:100%!important}.mobile-hide{display:none!important}table{min-width:560px}.app-shell{padding:16px 10px 32px!important}.app-title{font-size:25px!important}.tabs{overflow-x:auto;flex-wrap:nowrap!important;padding-bottom:10px!important}.tabs button{flex:0 0 auto}.card{padding:14px!important}.grid-responsive{grid-template-columns:1fr!important}.form-grid{grid-template-columns:1fr 1fr!important}.rotation-grid{grid-template-columns:repeat(5,1fr)!important}}
 @media print {
   /* Compact, low-storage PDF mode: text/vector content only, no UI decoration. */
-  @page { size: A4; margin: 6mm; }
+  @page { size: A4 landscape; margin: 8mm; }
   body.printing-scorecard { background: #fff !important; color: #111 !important; }
   body.printing-scorecard .app-shell { background: #fff !important; padding: 0 !important; color: #111 !important; }
   body.printing-scorecard .app-shell > div > * { visibility: hidden !important; }
@@ -16,6 +16,38 @@
   body.printing-scorecard h2 { font-size: 12px !important; margin: 5px 0 3px !important; }
   body.printing-scorecard p { margin: 2px 0 !important; font-size: 9px !important; }
   body.printing-scorecard * { text-shadow: none !important; filter: none !important; }
+  body.printing-scorecard .print-target { width:100% !important; }
+  body.printing-scorecard .export-card { font-family:Arial,sans-serif; color:#111; }
+  body.printing-scorecard .brand { font-size:11px; font-weight:800; letter-spacing:1.5px; color:#53685D; }
+  body.printing-scorecard .match-title { display:flex; justify-content:center; align-items:center; gap:14px; font-size:24px; font-weight:800; margin:3px 0 7px; }
+  body.printing-scorecard .match-title b { color:#777; font-size:14px; }
+  body.printing-scorecard .resim { display:block; width:max-content; margin:4px auto 7px; padding:4px 10px; border:1px solid #B34A3A; color:#B34A3A; font-weight:800; font-size:10px; border-radius:999px; }
+  body.printing-scorecard .result-banner { display:flex; justify-content:space-between; align-items:center; background:#edf5f0; border:1px solid #b9cdbf; padding:8px 10px; margin:6px 0; }
+  body.printing-scorecard .result-banner b { font-size:12px; }
+  body.printing-scorecard .result-banner span { font-size:10px; color:#4b5a52; }
+  body.printing-scorecard .match-meta { display:flex; gap:12px; flex-wrap:wrap; font-size:9px; color:#4f5d56; margin:6px 0 9px; }
+  body.printing-scorecard section { border:1px solid #b8c8bf; border-radius:7px; padding:9px; margin:0 0 9px; break-inside:avoid; }
+  body.printing-scorecard .section-head { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #567568; padding-bottom:4px; }
+  body.printing-scorecard .section-head h2 { margin:0 !important; font-size:13px !important; color:#355D49 !important; }
+  body.printing-scorecard .section-head strong { font-size:16px; }
+  body.printing-scorecard .meta { font-size:8.5px; color:#66746d; margin:3px 0 6px; }
+  body.printing-scorecard h3 { font-size:9px !important; color:#80652A !important; margin:6px 0 3px !important; text-transform:uppercase; letter-spacing:.4px; }
+  body.printing-scorecard table { width:100% !important; table-layout:auto !important; font-size:8px !important; border-collapse:collapse !important; }
+  body.printing-scorecard th, body.printing-scorecard td { padding:3px 4px !important; border-bottom:1px solid #d8dfdb !important; vertical-align:top; }
+  body.printing-scorecard th { color:#53685D !important; font-size:7px !important; text-transform:uppercase; }
+  body.printing-scorecard .dismissal { min-width:190px; white-space:normal; }
+  body.printing-scorecard .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  body.printing-scorecard .summary-box { border:1px solid #d5ddd8; padding:7px; font-size:8.5px; line-height:1.6; }
+  body.printing-scorecard .note { color:#777; font-size:7px; }
+  body.printing-scorecard .fow { margin:2px 0 0 18px; padding:0; font-size:8px; line-height:1.55; }
+  body.printing-scorecard .partnerships { display:flex; flex-wrap:wrap; gap:8px; font-size:8px; }
+  body.printing-scorecard .partnerships span { border:1px solid #d5ddd8; padding:3px 5px; border-radius:4px; }
+  body.printing-scorecard .verification table { font-size:7px !important; }
+  body.printing-scorecard .verification th, body.printing-scorecard .verification td { padding:3px !important; }
+  body.printing-scorecard .verification { break-inside:avoid; }
+  body.printing-scorecard .engine-note { margin-top:8px; border-top:1px solid #ccd7d1; padding-top:6px; font-size:7.5px; color:#66746d; }
+  body.printing-scorecard .page-break { break-before:page; height:0; }
+
 }
 
 </style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
@@ -1183,42 +1215,60 @@ function downloadBlob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function buildScorecardExportHTML(result,teamAName,teamBName){
+ const fmt=(v,d=1)=>Number.isFinite(Number(v))?Number(v).toFixed(d):'-';
+ const overs=(inn)=>{const balls=inn?.deliveries?.length||0;return `${Math.floor(balls/6)}.${balls%6}`;};
+ const runRate=(inn)=>{const balls=inn?.deliveries?.length||0;return balls?(inn.totalRuns/(balls/6)).toFixed(2):'-';};
+ const maidens=(inn,bowlerId)=>{
+   const ds=(inn?.deliveries||[]).filter(d=>d.bowlerId===bowlerId || (d.bowlerId==null && d.bowlerName===d.bowler));
+   const by={}; ds.forEach(d=>{const k=d.over;if(!by[k])by[k]=0;by[k]+=Number(d.runs||0);});
+   return Object.values(by).filter(r=>r===0).length;
+ };
+ const bowlData=(inn,b)=>{const balls=b.balls||0;const o=Math.floor(balls/6)+(balls%6)/10;const econ=balls?b.runs/(balls/6):0;const maid=maidens(inn,b.id);return {o:balls?o.toFixed(1):'0.0',m:maid,r:b.runs,w:b.wkts,e:balls?econ.toFixed(2):'-'};};
  const verificationTable=(teamName,rows)=>{
-   let h='<section><h2>✓ Pre-Match Updated Tier Verification — '+escapeHtml(teamName)+'</h2><table><tr><th>Player</th><th>Role</th><th>Base Stats</th><th>Pitch Modifier</th><th>Adjusted Stats</th><th>New Assigned Tier Archetype</th></tr>';
+   let h='<section class="verification"><h2>✓ Pre-Match Updated Tier Verification — '+escapeHtml(teamName)+'</h2><table><thead><tr><th>Player</th><th>Role</th><th>Base Stats</th><th>Pitch Modifier</th><th>Adjusted Stats</th><th>New Assigned Tier Archetype</th></tr></thead><tbody>';
    (rows||[]).forEach(v=>{
      const bowl=v.bowl;
-     const base=bowl?`Econ ${bowl.econ.toFixed(2)} / SR ${bowl.bowlSR.toFixed(1)} / Avg ${bowl.bowlAvg.toFixed(1)}`:`Avg ${v.batBase.avg} / SR ${v.batBase.sr}`;
-     const adjusted=bowl?`Econ ${bowl.econ.toFixed(2)} / SR ${bowl.bowlSR.toFixed(1)} / Avg ${bowl.bowlAvg.toFixed(1)}`:`Avg ${v.batAdjusted.avg.toFixed(2)} / SR ${v.batAdjusted.sr.toFixed(2)}`;
+     const base=bowl?`Econ ${fmt(bowl.econ,2)} / SR ${fmt(bowl.bowlSR,1)} / Avg ${fmt(bowl.bowlAvg,1)}`:`Avg ${v.batBase.avg} / SR ${v.batBase.sr}`;
+     const adjusted=bowl?`Econ ${fmt(bowl.econ,2)} / SR ${fmt(bowl.bowlSR,1)} / Avg ${fmt(bowl.bowlAvg,1)}`:`Avg ${fmt(v.batAdjusted.avg,2)} / SR ${fmt(v.batAdjusted.sr,2)}`;
      const mod=bowl?`${bowl.effectiveness>1?'+':bowl.effectiveness<1?'-':'0'}${Math.abs((bowl.effectiveness-1)*100).toFixed(0)}% effectiveness`:`Avg ${v.batModifier.avg>=0?'+':''}${v.batModifier.avg.toFixed(0)}% · SR ${v.batModifier.sr>=0?'+':''}${v.batModifier.sr.toFixed(0)}%`;
      h+=`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.role)}</td><td>${base}</td><td>${mod}</td><td>${adjusted}</td><td><b>${escapeHtml(bowl?bowl.class.archetype:v.batTier)}</b></td></tr>`;
    });
-   return h+'</table></section>';
+   return h+'</tbody></table></section>';
  };
  const inn=(x,title)=>{
-   let h=`<section><h2>${escapeHtml(title)} — ${x.totalRuns}/${x.totalWkts}</h2><h3>Batting</h3><table><tr><th>Player</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr>`;
-   x.battingCard.forEach(b=>{const dis=b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out';h+=`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${escapeHtml(dis)}</td></tr>`;});
-   h+='</table><h3>Bowling</h3><table><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr>';
-   x.bowlingCard.forEach(b=>{h+=`<tr><td>${escapeHtml(b.name)}</td><td>${(b.balls/6).toFixed(1)}</td><td>${b.runs}</td><td>${b.wkts}</td><td>${b.balls?(b.runs/(b.balls/6)).toFixed(2):'-'}</td></tr>`;});
-   h+='</table>';
-   if(x.fallOfWickets?.length){h+='<h3>Fall of Wickets</h3>';x.fallOfWickets.forEach(f=>{h+=`<p>${f.wicket}. ${escapeHtml(f.batter)} — ${f.score} at ${f.over} — ${escapeHtml(f.dismissal?.type||'Wicket')}</p>`;});}
-   if(x.partnerships?.length){h+='<h3>Partnerships</h3><p>'+x.partnerships.map((pp,i)=>`${i+1}. ${pp.runs} (${pp.balls} balls)`).join(' · ')+'</p>';}
+   let h=`<section class="innings"><div class="section-head"><h2>${escapeHtml(title)}</h2><strong>${x.totalRuns}/${x.totalWkts}</strong></div><div class="meta">Overs ${overs(x)} · Run Rate ${runRate(x)}</div>`;
+   h+='<h3>Batting</h3><table class="bat"><thead><tr><th>Batter</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr></thead><tbody>';
+   x.battingCard.forEach(b=>{
+     const dis=b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out';
+     h+=`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td class="dismissal">${escapeHtml(dis)}</td></tr>`;
+   });
+   h+='</tbody></table>';
+   h+='<div class="two-col"><div><h3>Bowling</h3><table><thead><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>';
+   x.bowlingCard.forEach(b=>{const z=bowlData(x,b);h+=`<tr><td>${escapeHtml(b.name)}</td><td>${z.o}</td><td>${z.m}</td><td>${z.r}</td><td>${z.w}</td><td>${z.e}</td></tr>`;});
+   h+='</tbody></table></div><div><h3>Innings Summary</h3><div class="summary-box"><b>Total:</b> '+x.totalRuns+'/'+x.totalWkts+'<br><b>Overs:</b> '+overs(x)+'<br><b>Run rate:</b> '+runRate(x)+'<br><b>Extras:</b> 0 <span class="note">(no separate extras are generated by the current engine)</span></div></div></div>';
+   if(x.fallOfWickets?.length){h+='<h3>Fall of Wickets</h3><ol class="fow">';x.fallOfWickets.forEach(f=>{const d=f.dismissal?`${f.dismissal.type}${f.dismissal.bowler?' b '+f.dismissal.bowler:''}${f.dismissal.fielder?' · '+f.dismissal.fielder:''}`:'Wicket';h+=`<li><b>${escapeHtml(f.batter)}</b> — ${f.score} at ${f.over} — ${escapeHtml(d)}</li>`;});h+='</ol>';}
+   if(x.partnerships?.length){h+='<h3>Partnerships</h3><div class="partnerships">';x.partnerships.forEach((pp,i)=>{h+=`<span>${i+1}. ${pp.runs} runs (${pp.balls} balls)</span>`;});h+='</div>';}
    return h+'</section>';
  };
- let html='<div class="export-card"><h1>T20 CRICKET LEAGUE SIMULATOR</h1>';
+ let html='<div class="export-card"><div class="brand">T20 CRICKET LEAGUE SIMULATOR</div>';
+ html+=`<div class="match-title"><span>${escapeHtml(teamAName)}</span><b>vs</b><span>${escapeHtml(teamBName)}</span></div>`;
  if(result.resimulated) html+='<div class="resim">RESIMULATED MATCH</div>';
- html+=`<p class="sub">${escapeHtml(teamAName)} vs ${escapeHtml(teamBName)} — ${escapeHtml(result.margin)}</p>`;
- if(result.toss) html+=`<p><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}.</p>`;
- if(result.pitchName) html+=`<p><b>Pitch:</b> ${escapeHtml(result.pitchName)}</p>`;
- if(result.playerOfMatch) html+=`<p><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</p>`;
- html+=verificationTable(teamAName,result.verification?.teamA);
- html+=verificationTable(teamBName,result.verification?.teamB);
+ html+=`<div class="result-banner"><b>${escapeHtml(result.margin)}</b><span>${escapeHtml(teamAName)} ${result.inn1.totalRuns}/${result.inn1.totalWkts} · ${escapeHtml(teamBName)} ${result.inn2.totalRuns}/${result.inn2.totalWkts}</span></div>`;
+ html+='<div class="match-meta">';
+ if(result.toss) html+=`<span><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}</span>`;
+ if(result.pitchName) html+=`<span><b>Pitch / Venue:</b> ${escapeHtml(result.pitchName)}</span>`;
+ if(result.playerOfMatch) html+=`<span><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</span>`;
+ if(result.date) html+=`<span><b>Date:</b> ${escapeHtml(new Date(result.date).toLocaleString())}</span>`;
+ html+='</div>';
  html+=inn(result.inn1,teamAName+' innings');
  html+=inn(result.inn2,teamBName+' innings');
- if(result.superOver) html+=`<section><h2>SUPER OVER</h2><p>${escapeHtml(teamAName)} ${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts} · ${escapeHtml(teamBName)} ${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</p></section>`;
+ if(result.superOver) html+=`<section class="super"><h2>SUPER OVER</h2><div>${escapeHtml(teamAName)} <b>${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts}</b> · ${escapeHtml(teamBName)} <b>${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</b></div></section>`;
+ html+='<div class="page-break"></div>';
+ html+=verificationTable(teamAName,result.verification?.teamA);
+ html+=verificationTable(teamBName,result.verification?.teamB);
+ html+='<div class="engine-note"><b>Simulation record:</b> Uploaded player statistics and pitch conditions are the masters. HS is metadata only and does not affect simulation. Uploaded bowling rotations are followed unless manually overridden for the match.</div>';
  return html+'</div>';
 }
-function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
-function exportScorecardPDF() { document.body.classList.add("printing-scorecard"); window.setTimeout(() => { window.print(); window.setTimeout(() => document.body.classList.remove("printing-scorecard"), 500); }, 50); }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}.resim{display:inline-block;padding:7px 11px;border:1px solid #C15B4A;color:#C15B4A;font-weight:800;border-radius:999px;font-size:13px;margin:4px 0 10px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
@@ -1259,26 +1309,27 @@ function SimpleTable({headers,rows}){
  );
 }
 function Scorecard({innings,title}){
+ const overs=(innings.deliveries?.length||0); const ov=`${Math.floor(overs/6)}.${overs%6}`; const rr=overs?(innings.totalRuns/(overs/6)).toFixed(2):'-';
  const battingRows=innings.battingCard.map(b=>[
-   b.name+(!b.out&&b.balls>0?' *':''),
-   b.runs,b.balls,b.balls?((b.runs/b.balls)*100).toFixed(1):'-',b.fours,b.sixes,
+   b.name+(!b.out&&b.balls>0?' *':'') , b.runs,b.balls,b.balls?((b.runs/b.balls)*100).toFixed(1):'-',b.fours,b.sixes,
    b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out'
  ]);
- const bowlRows=innings.bowlingCard.map(b=>[b.name,(b.balls/6).toFixed(1),b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):'-']);
- return React.createElement('div',{style:{...card,flex:1,minWidth:300,padding:14}},
-  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${C.line}`,paddingBottom:8}},
-   React.createElement('b',{style:{color:C.accent,fontSize:12}},title),
-   React.createElement('b',{style:{fontSize:18}},`${innings.totalRuns}/${innings.totalWkts}`)),
-  React.createElement('div',{style:{fontSize:10,color:C.textDim,marginTop:4}},`Overs: ${(innings.deliveries.length/6).toFixed(1)}`),
-  React.createElement('div',{style:{overflowX:'auto',marginTop:8}},React.createElement(SimpleTable,{headers:['Batter','R','B','SR','4s','6s','Dismissal'],rows:battingRows})),
-  React.createElement('div',{style:{fontWeight:700,color:C.accent,margin:'12px 0 6px',fontSize:11}},'Bowling'),
-  React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Bowler','O','R','W','Econ'],rows:bowlRows})),
-  innings.fallOfWickets?.length>0&&React.createElement('div',{style:{marginTop:10,fontSize:10,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Fall of Wickets'),innings.fallOfWickets.map(f=>React.createElement('div',{key:f.wicket},`${f.wicket}. ${f.batter} — ${f.score} (${f.over}) — ${f.dismissal?.type||'Wicket'}`)))
+ const maidens=(bowlerId)=>{const by={};(innings.deliveries||[]).filter(d=>d.bowlerId===bowlerId || d.bowler===innings.bowlingCard.find(x=>x.id===bowlerId)?.name).forEach(d=>{by[d.over]=(by[d.over]||0)+Number(d.runs||0)});return Object.values(by).filter(r=>r===0).length;};
+ const bowlRows=innings.bowlingCard.map(b=>{const balls=b.balls||0;return[b.name,balls?(Math.floor(balls/6)+(balls%6)/10).toFixed(1):'0.0',maidens(b.id),b.runs,b.wkts,balls?(b.runs/(balls/6)).toFixed(2):'-'];});
+ return React.createElement('div',{style:{...card,width:'100%',padding:16,marginBottom:12}},
+  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`2px solid ${C.line}`,paddingBottom:8}},React.createElement('b',{style:{color:C.accent,fontSize:13}},title),React.createElement('b',{style:{fontSize:22}},`${innings.totalRuns}/${innings.totalWkts}`)),
+  React.createElement('div',{style:{display:'flex',gap:14,fontSize:10.5,color:C.textDim,marginTop:5,flexWrap:'wrap'}},`Overs: ${ov}`,`Run Rate: ${rr}`,`Extras: 0`),
+  React.createElement('div',{style:{marginTop:10}},React.createElement(SimpleTable,{headers:['Batter','R','B','SR','4s','6s','Dismissal'],rows:battingRows})),
+  React.createElement('div',{style:{fontWeight:700,color:C.accent,margin:'14px 0 6px',fontSize:11}},'Bowling'),
+  React.createElement(SimpleTable,{headers:['Bowler','O','M','R','W','Econ'],rows:bowlRows}),
+  React.createElement('div',{style:{marginTop:12,fontSize:10.5,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Fall of Wickets'),innings.fallOfWickets?.length?innings.fallOfWickets.map(f=>React.createElement('div',{key:f.wicket},`${f.wicket}. ${f.batter} — ${f.score} at ${f.over} — ${f.dismissal?.type||'Wicket'}${f.dismissal?.bowler?' b '+f.dismissal.bowler:''}${f.dismissal?.fielder?' · '+f.dismissal.fielder:''}`)):React.createElement('span',null,' None')),
+  React.createElement('div',{style:{marginTop:10,fontSize:10,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Partnerships'),innings.partnerships?.length?React.createElement('div',null,innings.partnerships.map((p,i)=>React.createElement('span',{key:i,style:{marginRight:12}},`${i+1}. ${p.runs} (${p.balls} balls)`))):React.createElement('span',null,' None'))
  );
 }
 
 // ============================================================================
 // TOURNAMENTS TAB
+
 function tournamentFormatInfo(format,n){
  const league=format==='double-round-robin'?n*(n-1):format==='groups-knockout'?(Math.ceil(n/2)*(Math.ceil(n/2)-1)/2+Math.floor(n/2)*(Math.floor(n/2)-1)/2):n*(n-1)/2;
  const playoff=(format==='round-robin-playoffs'||format==='double-round-robin')?([7,8].includes(n)?2:([9,10].includes(n)?4:0)):format==='knockout'?Math.max(1,n-1):format==='groups-knockout'?3:0;
@@ -1358,6 +1409,7 @@ function PlayMatchTab({ data, update, prefill }) {
             if (existing && !window.confirm("This fixture already has a completed result. Resimulate it and make the new result the latest result?")) return;
             const r = playMatch(teamA, teamB, pitch, effRotA, effRotB, playerLookup);
             r.resimulated = !!existing;
+            r.date = new Date().toISOString();
             r.pitchName = pitch.name;
             r.pitchCategory = pitch.category;
             setResult(r);
