@@ -1,62 +1,21 @@
 <!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#081410"><title>T20 Cricket League Simulator</title><style>*{box-sizing:border-box}html,body,#root{margin:0;min-height:100%;background:#081410}body{overflow-x:hidden}button,input,select{font:inherit}@media(max-width:760px){.desktop-only{display:none!important}.mobile-stack{grid-template-columns:1fr!important}.mobile-scroll{overflow-x:auto}.mobile-full{width:100%!important}.mobile-hide{display:none!important}table{min-width:560px}.app-shell{padding:16px 10px 32px!important}.app-title{font-size:25px!important}.tabs{overflow-x:auto;flex-wrap:nowrap!important;padding-bottom:10px!important}.tabs button{flex:0 0 auto}.card{padding:14px!important}.grid-responsive{grid-template-columns:1fr!important}.form-grid{grid-template-columns:1fr 1fr!important}.rotation-grid{grid-template-columns:repeat(5,1fr)!important}}
 @media print {
-  /* Compact, low-storage PDF mode: text/vector content only, no UI decoration. */
-  @page { size: A4 landscape; margin: 8mm; }
-  body.printing-scorecard { background: #fff !important; color: #111 !important; }
+  @page { size: A4; margin: 10mm; }
+  body.printing-scorecard { background: #fff !important; }
   body.printing-scorecard .app-shell { background: #fff !important; padding: 0 !important; color: #111 !important; }
   body.printing-scorecard .app-shell > div > * { visibility: hidden !important; }
   body.printing-scorecard .app-shell .print-target,
   body.printing-scorecard .app-shell .print-target * { visibility: visible !important; }
-  body.printing-scorecard .app-shell .print-target { position: absolute; left: 0; top: 0; width: 100%; max-width: none !important; }
+  body.printing-scorecard .app-shell .print-target { position: absolute; left: 0; top: 0; width: 100%; }
   body.printing-scorecard .no-print { display: none !important; }
-  body.printing-scorecard .card { box-shadow: none !important; background: #fff !important; border: 1px solid #bbb !important; break-inside: avoid; }
-  body.printing-scorecard table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
-  body.printing-scorecard th, body.printing-scorecard td { padding: 2px 4px !important; border-color: #ccc !important; }
-  body.printing-scorecard h1 { font-size: 18px !important; margin: 0 0 4px !important; }
-  body.printing-scorecard h2 { font-size: 12px !important; margin: 5px 0 3px !important; }
-  body.printing-scorecard p { margin: 2px 0 !important; font-size: 9px !important; }
-  body.printing-scorecard * { text-shadow: none !important; filter: none !important; }
-  body.printing-scorecard .print-target { width:100% !important; }
-  body.printing-scorecard .export-card { font-family:Arial,sans-serif; color:#111; }
-  body.printing-scorecard .brand { font-size:11px; font-weight:800; letter-spacing:1.5px; color:#53685D; }
-  body.printing-scorecard .match-title { display:flex; justify-content:center; align-items:center; gap:14px; font-size:24px; font-weight:800; margin:3px 0 7px; }
-  body.printing-scorecard .match-title b { color:#777; font-size:14px; }
-  body.printing-scorecard .resim { display:block; width:max-content; margin:4px auto 7px; padding:4px 10px; border:1px solid #B34A3A; color:#B34A3A; font-weight:800; font-size:10px; border-radius:999px; }
-  body.printing-scorecard .result-banner { display:flex; justify-content:space-between; align-items:center; background:#edf5f0; border:1px solid #b9cdbf; padding:8px 10px; margin:6px 0; }
-  body.printing-scorecard .result-banner b { font-size:12px; }
-  body.printing-scorecard .result-banner span { font-size:10px; color:#4b5a52; }
-  body.printing-scorecard .match-meta { display:flex; gap:12px; flex-wrap:wrap; font-size:9px; color:#4f5d56; margin:6px 0 9px; }
-  body.printing-scorecard section { border:1px solid #b8c8bf; border-radius:7px; padding:9px; margin:0 0 9px; break-inside:avoid; }
-  body.printing-scorecard .section-head { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #567568; padding-bottom:4px; }
-  body.printing-scorecard .section-head h2 { margin:0 !important; font-size:13px !important; color:#355D49 !important; }
-  body.printing-scorecard .section-head strong { font-size:16px; }
-  body.printing-scorecard .meta { font-size:8.5px; color:#66746d; margin:3px 0 6px; }
-  body.printing-scorecard h3 { font-size:9px !important; color:#80652A !important; margin:6px 0 3px !important; text-transform:uppercase; letter-spacing:.4px; }
-  body.printing-scorecard table { width:100% !important; table-layout:auto !important; font-size:8px !important; border-collapse:collapse !important; }
-  body.printing-scorecard th, body.printing-scorecard td { padding:3px 4px !important; border-bottom:1px solid #d8dfdb !important; vertical-align:top; }
-  body.printing-scorecard th { color:#53685D !important; font-size:7px !important; text-transform:uppercase; }
-  body.printing-scorecard .dismissal { min-width:190px; white-space:normal; }
-  body.printing-scorecard .two-col { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  body.printing-scorecard .summary-box { border:1px solid #d5ddd8; padding:7px; font-size:8.5px; line-height:1.6; }
-  body.printing-scorecard .note { color:#777; font-size:7px; }
-  body.printing-scorecard .fow { margin:2px 0 0 18px; padding:0; font-size:8px; line-height:1.55; }
-  body.printing-scorecard .partnerships { display:flex; flex-wrap:wrap; gap:8px; font-size:8px; }
-  body.printing-scorecard .partnerships span { border:1px solid #d5ddd8; padding:3px 5px; border-radius:4px; }
-  body.printing-scorecard .verification table { font-size:7px !important; }
-  body.printing-scorecard .verification th, body.printing-scorecard .verification td { padding:3px !important; }
-  body.printing-scorecard .verification { break-inside:avoid; }
-  body.printing-scorecard .engine-note { margin-top:8px; border-top:1px solid #ccd7d1; padding-top:6px; font-size:7.5px; color:#66746d; }
-  body.printing-scorecard .page-break { break-before:page; height:0; }
-
+  body.printing-scorecard .card { box-shadow: none !important; break-inside: avoid; }
 }
 
-</style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
+<style>\n.export-card{font-family:Arial,sans-serif;color:#17221d;background:#fff;width:100%;max-width:1120px;margin:0 auto}.brand{font-size:10px;letter-spacing:.14em;color:#527565;font-weight:700;margin-bottom:5px}.match-title{font-size:25px;font-weight:800;color:#13231b;margin-bottom:7px}.match-title span{color:#9b9b9b;font-weight:500;margin:0 8px}.resim{display:inline-block;border:1px solid #b74d3e;color:#b74d3e;border-radius:999px;padding:4px 9px;font-size:9px;font-weight:800;letter-spacing:.06em;margin-bottom:7px}.result-banner{display:flex;justify-content:space-between;gap:16px;border:1px solid #cad8d0;border-radius:9px;padding:9px 11px;background:#f4f8f5;margin-bottom:8px}.result-banner b{color:#295f48}.match-meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:9px;color:#53665d;margin-bottom:10px}.innings{border:1px solid #cbd8d0;border-radius:9px;padding:11px;margin:0 0 10px;break-inside:avoid}.section-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #244f3d;padding-bottom:6px;margin-bottom:6px}.section-head h2{font-size:15px;margin:0;color:#214d3a}.score{font-size:19px;color:#17221d}.meta{font-size:8.5px;color:#65756d;margin-top:2px}.subhead{font-size:8.5px;letter-spacing:.1em;color:#557668;font-weight:800;margin:7px 0 4px}table{width:100%;border-collapse:collapse;font-size:8px;table-layout:auto}th,td{padding:4px 4px;border-bottom:1px solid #dce5e0;text-align:left;vertical-align:top}th{font-size:7px;letter-spacing:.06em;color:#60766b;text-transform:uppercase;white-space:nowrap}td:nth-child(2),td:nth-child(3),td:nth-child(4),td:nth-child(5),td:nth-child(6){white-space:nowrap;text-align:right}.dismissal{white-space:normal;line-height:1.25;min-width:150px}.grid2{display:grid;grid-template-columns:1.45fr .75fr;gap:12px;margin-top:3px}.summary{font-size:9px;line-height:1.65;border:1px solid #dce5e0;border-radius:7px;padding:8px;background:#f8faf9}.fow{font-size:8.5px;line-height:1.5;margin:4px 0 0;padding-left:19px}.partnerships{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 12px;font-size:8.5px}.super{border:1px solid #bfa24e;border-radius:9px;padding:10px;background:#fffaf0;break-inside:avoid;margin-bottom:10px}.section-title{font-size:10px;font-weight:800;color:#8a6c25;margin-bottom:7px}.verification{break-inside:avoid;margin-top:10px}.verification table{font-size:7.2px}.verification th{font-size:6.6px}.verification td{padding:3.5px}.engine-note{font-size:7.5px;color:#68776f;border-top:1px solid #d8e2dc;margin-top:10px;padding-top:6px;line-height:1.4}@media print{@page{size:A4 landscape;margin:7mm}.export-card{max-width:none}.innings{break-inside:auto}.innings table{break-inside:auto}.verification{break-inside:avoid}.no-print{display:none!important}}</style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
 const Icon = ({ children, ...p }) => React.createElement("span", { ...p, style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1em', lineHeight: 1, ...(p.style || {}) } }, children || '•');
 const Users = () => React.createElement(Icon, null, "\uD83D\uDC65"), MapPin = () => React.createElement(Icon, null, "\uD83D\uDCCD"), Shield = () => React.createElement(Icon, null, "\uD83D\uDEE1\uFE0F"), PlayCircle = () => React.createElement(Icon, null, "\u25B6\uFE0F"), Trophy = () => React.createElement(Icon, null, "\uD83C\uDFC6"), Clock = () => React.createElement(Icon, null, "\u25F7"), RotateCcw = () => React.createElement(Icon, null, "\u21BB"), CheckCircle2 = () => React.createElement(Icon, null, "\u2713"), Loader2 = () => React.createElement(Icon, null, "\u27F3"), ChevronRight = () => React.createElement(Icon, null, "\u203A"), X = () => React.createElement(Icon, null, "\u00D7"), Plus = () => React.createElement(Icon, null, "+"), Award = () => React.createElement(Icon, null, "\uD83C\uDFC5"), Zap = () => React.createElement(Icon, null, "\u26A1"), Home = () => React.createElement(Icon, null, "\u2302"), Target = () => React.createElement(Icon, null, "\uD83C\uDFAF"), Flame = () => React.createElement(Icon, null, "\uD83D\uDD25"), FileText = () => React.createElement(Icon, null, "\uD83D\uDCC4"), ImageIcon = () => React.createElement(Icon, null, "\uD83D\uDDBC\uFE0F");
 // ============================================================================
-// ENGINE (rules grounded in the uploaded T20 Cricket AI Simulation Reference + System Specification)
-// HS is display-only. Toss is recorded but has zero baseline advantage.
-// Pitch adjustment -> dynamic tier reclassification -> batter/bowler matrix mean -> phase modifiers.
+// ENGINE (rules identical to the reference doc)
 // ============================================================================
 const vec = (wicket, dot, rotate, four, six) => ({ wicket, dot, rotate, four, six });
 const BATSMAN_ARCHETYPES = [
@@ -331,27 +290,13 @@ function applyExactStatsAndPitch(base, batter, bowler, pitch, over) {
     return renormalize(bv);
 }
 function simulateBall(batter, bowler, pitch, over, rng) {
-    // MASTER ENGINE: raw uploaded stats -> pitch adjustment -> dynamic archetype ->
-    // batter/bowler normalized arithmetic mean -> phase modifier -> delivery roll.
-    // HS is metadata only and is never consulted here.
     const batStats = pitchAdjustedProfile(batter, pitch);
     const { o: batVec } = classifyBatsman(batStats.sr, batStats.avg);
     const bowlStats = pitchAdjustedBowlerProfile(bowler, pitch);
     const { o: bowlBase } = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
-    let bowlVec = bowlBase;
-    // Apply the documented +/-10% pitch effectiveness as a directional control
-    // adjustment before re-normalizing; it never creates an external player bonus.
-    if (bowlStats.effectiveness !== 1) {
-        const e = bowlStats.effectiveness;
-        bowlVec = renormalize(vec(
-            bowlBase.wicket * e,
-            bowlBase.dot * e,
-            bowlBase.rotate,
-            bowlBase.four / e,
-            bowlBase.six / e
-        ));
-    }
+    const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
     let combined = blend(batVec, bowlVec);
+    combined = applyExactStatsAndPitch(combined, batter, bowler, pitch, over);
     combined = applyPhase(combined, over);
     return resolveDelivery(combined, rng);
 }
@@ -672,95 +617,6 @@ function getLatestFixtureMatch(matches, fixtureId) {
 }
 let idCounter = Date.now();
 const nid = (p) => `${p}${idCounter++}`;
-
-// ============================================================================
-// TOURNAMENT / VALIDATION HELPERS
-// Restored from the working tournament foundation. These are required before App mounts.
-// ============================================================================
-function hasSuppliedNumber(v) { return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)); }
-function getTeamSimulationIssues(team, playerLookup) {
-    const xi = (team?.xiOrder || []).map((id) => playerLookup[id]).filter(Boolean);
-    const issues = [];
-    if (xi.length !== 11) issues.push(`${team?.name || "Team"} must have exactly 11 players.`);
-    xi.forEach((p) => {
-        if (!p.isBowler && (!hasSuppliedNumber(p.avg) || !hasSuppliedNumber(p.sr))) issues.push(`${p.name} has no supplied batting Average/SR.`);
-        if (p.isBowler && (!Number.isFinite(Number(p.bowlAvg)) || !Number.isFinite(Number(p.bowlSR)) || !Number.isFinite(Number(p.econ)))) issues.push(`${p.name} has incomplete supplied bowling statistics.`);
-        if (p.isBowler && !p.bowlingType) issues.push(`${p.name} has no supplied bowling type.`);
-    });
-    return issues;
-}
-function computePointsTable(tournament, matches, teams) {
-    const table = {};
-    (tournament.teamIds || []).forEach((id) => { table[id] = { teamId:id, played:0, won:0, lost:0, tied:0, points:0, runsFor:0, oversFor:0, runsAgainst:0, oversAgainst:0 }; });
-    tournamentMatches(matches, tournament.id).forEach((m) => {
-        const a=table[m.teamAId], b=table[m.teamBId]; if(!a||!b||!m.inn1||!m.inn2) return;
-        a.played++; b.played++;
-        const o1=(m.inn1.deliveries?.length||0)/6, o2=(m.inn2.deliveries?.length||0)/6;
-        a.runsFor+=m.inn1.totalRuns; a.oversFor+=o1; a.runsAgainst+=m.inn2.totalRuns; a.oversAgainst+=o2;
-        b.runsFor+=m.inn2.totalRuns; b.oversFor+=o2; b.runsAgainst+=m.inn1.totalRuns; b.oversAgainst+=o1;
-        if(m.winnerId===m.teamAId){a.won++;a.points+=2;b.lost++;}
-        else if(m.winnerId===m.teamBId){b.won++;b.points+=2;a.lost++;}
-        else {a.tied++;b.tied++;a.points++;b.points++;}
-    });
-    return Object.values(table).map(r=>({...r,teamName:teams.find(t=>t.id===r.teamId)?.name||"?",nrr:r.oversFor&&r.oversAgainst?((r.runsFor/r.oversFor)-(r.runsAgainst/r.oversAgainst)).toFixed(2):"0.00"})).sort((x,y)=>y.points-x.points||parseFloat(y.nrr)-parseFloat(x.nrr));
-}
-function generateRoundRobin(teamIds) {
-    const ids=[...(teamIds||[])]; if(ids.length<2)return []; if(ids.length%2)ids.push(null);
-    const rounds=ids.length-1, half=ids.length/2, fixtures=[]; let matchNo=0;
-    for(let r=0;r<rounds;r++){
-        for(let i=0;i<half;i++){const a=ids[i],b=ids[ids.length-1-i];if(a&&b){matchNo++;fixtures.push({id:nid("fx"),teamAId:a,teamBId:b,round:`Matchday ${r+1}`,matchNo,played:false});}}
-        ids.splice(1,0,ids.pop());
-    }
-    return fixtures;
-}
-function generateDoubleRoundRobin(teamIds){
-    const first=generateRoundRobin(teamIds);
-    const second=first.map(f=>({...f,id:nid("fx"),teamAId:f.teamBId,teamBId:f.teamAId,round:f.round.replace("Matchday","Matchday 2nd Leg")}));
-    return [...first,...second].map((f,i)=>({...f,matchNo:i+1}));
-}
-function nextPowerOfTwo(n){let p=1;while(p<n)p*=2;return p;}
-function knockoutLabelForCount(n){if(n===2)return "Final";if(n===4)return "Semi Finals";if(n===8)return "Quarter Finals";if(n===16)return "Round of 16";return "Knockout Round";}
-function generateKnockoutInitial(teamIds){
-    const ids=[...(teamIds||[])];if(ids.length<2)return {fixtures:[],stage:"Final",byeTeamIds:[]};
-    const size=nextPowerOfTwo(ids.length), prelimMatches=ids.length-size/2;
-    if(prelimMatches<=0){const fixtures=[];for(let i=0;i<ids.length;i+=2)fixtures.push({id:nid("fx"),teamAId:ids[i],teamBId:ids[i+1],round:knockoutLabelForCount(ids.length),played:false});return {fixtures:fixtures.map((f,i)=>({...f,matchNo:i+1})),stage:knockoutLabelForCount(ids.length),byeTeamIds:[]};}
-    const fixtures=[];for(let i=0;i<prelimMatches*2;i+=2)fixtures.push({id:nid("fx"),teamAId:ids[i],teamBId:ids[i+1],round:"Preliminary Round",matchNo:fixtures.length+1,played:false});
-    return {fixtures,stage:"Preliminary Round",byeTeamIds:ids.slice(prelimMatches*2)};
-}
-function getWinnersForFixtures(fixtures,matches){return fixtures.map(f=>getLatestFixtureMatch(matches,f.id)?.winnerId).filter(Boolean);}
-function playoffConfigForCount(n){
-    if(n===7||n===8)return {fixtures:[{teamARef:"RANK2",teamBRef:"RANK3",round:"Qualifier"},{teamARef:"RANK1",teamBRef:"WINNER:Qualifier",round:"Final"}]};
-    if(n===9||n===10)return {fixtures:[{teamARef:"RANK1",teamBRef:"RANK2",round:"Qualifier 1"},{teamARef:"RANK3",teamBRef:"RANK4",round:"Eliminator"},{teamARef:"LOSER:Qualifier 1",teamBRef:"WINNER:Eliminator",round:"Qualifier 2"},{teamARef:"WINNER:Qualifier 1",teamBRef:"WINNER:Qualifier 2",round:"Final"}]};
-    return null;
-}
-function makeAutoPlayoffFixtures(teamCount,leagueMatchCount){const cfg=playoffConfigForCount(teamCount);if(!cfg)return [];return cfg.fixtures.map((f,i)=>({id:nid("fx"),teamAId:null,teamBId:null,teamARef:f.teamARef,teamBRef:f.teamBRef,round:f.round,matchNo:leagueMatchCount+i+1,played:false}));}
-function playoffTeamId(ref,tn,matches,teams){
-    if(!ref)return null;
-    if(ref.startsWith("RANK")){const done=(tn.fixtures||[]).length>0&&(tn.fixtures||[]).every(f=>!!getLatestFixtureMatch(matches,f.id));if(!done)return null;return computePointsTable(tn,matches,teams)[Number(ref.slice(4))-1]?.teamId||null;}
-    const m=ref.match(/^(WINNER|LOSER):(.+)$/);if(!m)return null;
-    const fx=(tn.playoffFixtures||[]).find(f=>f.round===m[2]);const result=fx?getLatestFixtureMatch(matches,fx.id):null;if(!result||!result.winnerId)return null;
-    return m[1]==="WINNER"?result.winnerId:(result.teamAId===result.winnerId?result.teamBId:result.teamAId);
-}
-function resolvePlayoffFixture(fx,tn,matches,teams){if(!fx?.teamARef&&!fx?.teamBRef)return fx;return {...fx,teamAId:playoffTeamId(fx.teamARef,tn,matches,teams),teamBId:playoffTeamId(fx.teamBRef,tn,matches,teams)};}
-function migrateAutoPlayoffs(data){
-    let changed=false;
-    const tournaments=(data.tournaments||[]).map(tn=>{
-        const eligible=(tn.format==="double-round-robin"||tn.format==="round-robin-playoffs")&&[7,8,9,10].includes((tn.teamIds||[]).length);
-        if(!eligible||(tn.playoffFixtures||[]).length)return tn;
-        changed=true;return {...tn,playoffFixtures:makeAutoPlayoffFixtures(tn.teamIds.length,(tn.fixtures||[]).length)};
-    });
-    return changed?{...data,tournaments}:data;
-}
-function generateNextKnockoutRound(tn,matches){
-    const current=tn.knockoutStage||"Preliminary Round", currentFixtures=(tn.playoffFixtures||[]).filter(f=>f.round===current);
-    if(!currentFixtures.length||!currentFixtures.every(f=>matches.some(m=>m.fixtureId===f.id)))return null;
-    const winners=getWinnersForFixtures(currentFixtures,matches), bye=current==="Preliminary Round"?(tn.knockoutByeTeamIds||[]):[], teams=[...winners,...bye];
-    if(teams.length<2)return null;
-    const nextStage=knockoutLabelForCount(teams.length), fixtures=[];
-    for(let i=0;i<teams.length;i+=2)if(teams[i+1])fixtures.push({id:nid("fx"),teamAId:teams[i],teamBId:teams[i+1],round:nextStage,matchNo:fixtures.length+1,played:false});
-    return {fixtures,stage:nextStage};
-}
-// ============================================================================
 // ============================================================================
 // STYLE SYSTEM
 // ============================================================================
@@ -973,77 +829,6 @@ function mergeImportedData(data, parsed) {
     });
     return { ...data, players, teams, importWarnings: warnings };
 }
-function AddPlayerTab({data, update}){
- const blank={name:'',avg:'',sr:'',hs:'',isBowler:false,bowlAvg:'',bowlSR:'',econ:'',bowlingType:'',isWK:false,isCaptain:false,isOverseas:false,teamId:''};
- const [draft,setDraft]=useState(blank),[msg,setMsg]=useState('');
- const bowlingTypes=['Fast','Fast-Medium','Medium-Fast','Medium','Left-Arm Fast','Right-Arm Fast','Left-Arm Medium','Right-Arm Medium','Left-Arm Medium-Fast','Right-Arm Medium-Fast','Off Spin','Off Break','Leg Spin','Leg Break','Leg-Break Googly','Googly','Left-Arm Orthodox','Slow Left-Arm Orthodox','Left-Arm Wrist Spin','Wrist Spin','Chinaman','Carrom Ball','Doosra','Finger Spin','Mystery Spin','Swing','Seam','Cutter','Slower Ball','Knuckleball'];
- const reset=()=>setDraft(blank);
- const add=()=>{
-   const name=draft.name.trim();
-   if(!name){setMsg('Enter a player name.');return;}
-   if(data.players.some(p=>p.name.trim().toLowerCase()===name.toLowerCase())){setMsg('That player already exists.');return;}
-   const n=v=>v===''||v==null?null:Number(v);
-   const player={id:nid('p'),name,avg:n(draft.avg),sr:n(draft.sr),hs:n(draft.hs),isBowler:!!draft.isBowler,bowlAvg:n(draft.bowlAvg),bowlSR:n(draft.bowlSR),econ:n(draft.econ),bowlingType:draft.bowlingType||'',isSpin:/spin|break|googly|doosra|chinaman|carrom/i.test(draft.bowlingType||''),isWK:!!draft.isWK,isCaptain:!!draft.isCaptain,isOverseas:!!draft.isOverseas};
-   let teams=data.teams;
-   if(draft.teamId){teams=teams.map(t=>t.id===draft.teamId?{...t,squad:Array.from(new Set([...(t.squad||[]),player.id]))}:t);}
-   update({...data,players:[...data.players,player],teams});
-   setMsg(`${name} added successfully.`);reset();
- };
- return React.createElement('div',null,
-  React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},'Add Player'),React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:12}},'Add one player manually. HS is stored for display only and never affects simulation.'),
-   React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:10}},
-    [['name','Player name'],['avg','Bat Avg'],['sr','Bat SR'],['hs','High Score'],['bowlAvg','Bowl Avg'],['bowlSR','Bowl SR'],['econ','Economy']].map(([k,l])=>React.createElement('div',{key:k},React.createElement('div',{style:eyebrow},l),React.createElement('input',{style:input,value:draft[k],placeholder:l,onChange:e=>setDraft({...draft,[k]:e.target.value})}))),
-    React.createElement('div',null,React.createElement('div',{style:eyebrow},'Bowling type'),React.createElement('select',{style:input,value:draft.bowlingType,onChange:e=>setDraft({...draft,bowlingType:e.target.value})},React.createElement('option',{value:''},'Select if bowler'),bowlingTypes.map(x=>React.createElement('option',{key:x,value:x},x)))),
-    React.createElement('div',null,React.createElement('div',{style:eyebrow},'Add to team'),React.createElement('select',{style:input,value:draft.teamId,onChange:e=>setDraft({...draft,teamId:e.target.value})},React.createElement('option',{value:''},'No team yet'),data.teams.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name))))
-   ),
-   React.createElement('div',{style:{display:'flex',gap:16,flexWrap:'wrap',marginTop:12,fontSize:12}},
-    [['isBowler','Bowler'],['isWK','WK'],['isCaptain','Captain'],['isOverseas','Overseas']].map(([k,l])=>React.createElement('label',{key:k,style:{display:'flex',alignItems:'center',gap:6}},React.createElement('input',{type:'checkbox',checked:!!draft[k],onChange:e=>setDraft({...draft,[k]:e.target.checked})}),l))
-   ),
-   React.createElement('div',{style:{display:'flex',gap:8,marginTop:14}},React.createElement('button',{style:btnPrimary,onClick:add},'Add Player'),React.createElement('button',{style:btn,onClick:reset},'Clear'),msg&&React.createElement('span',{style:{alignSelf:'center',fontSize:11,color:msg.includes('successfully')?C.accent2:C.red}},msg))
-  )
- );
-}
-function AddTeamTab({data,update}){
- const [bulkText,setBulkText]=useState(''),[msg,setMsg]=useState(''),[warnings,setWarnings]=useState([]);
- const importTeams=()=>{
-   const parsed=parsePlayingXIText(bulkText);
-   setWarnings(parsed.warnings||[]);
-   if(!parsed.teams.length){setMsg('No valid team blocks found.');return;}
-   let players=[...data.players],teams=[...data.teams];
-   parsed.teams.forEach(src=>{
-     let t=teams.find(x=>x.name.trim().toLowerCase()===src.name.trim().toLowerCase());
-     if(!t){t={id:nid('t'),name:src.name,squad:[],xiOrder:[],groundName:'',homeGroundId:'',bowlingRotation:{}};teams.push(t);}
-     const ids=[];
-     src.players.forEach(p=>{
-       let ex=players.find(x=>x.name.trim().toLowerCase()===p.name.trim().toLowerCase());
-       const normalized={avg:p.avg,sr:p.sr,hs:p.hs,isBowler:p.isBowler,bowlAvg:p.bowlAvg,bowlSR:p.bowlSR,econ:p.econ,bowlingType:p.bowlingType||'',isSpin:/spin|break|googly|doosra|chinaman|carrom/i.test(p.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain,isOverseas:p.isOverseas};
-       if(!ex){ex={id:nid('p'),name:p.name,...normalized};players.push(ex);}
-       else Object.assign(ex,normalized);
-       ids.push(ex.id);
-     });
-     t.squad=Array.from(new Set(ids));
-     t.xiOrder=src.players.sort((a,b)=>a.order-b.order).map(p=>players.find(x=>x.name.trim().toLowerCase()===p.name.trim().toLowerCase())?.id).filter(Boolean);
-     const rot={};
-     Object.entries(src.rotation||{}).forEach(([over,nm])=>{const p=players.find(x=>x.name.trim().toLowerCase()===String(nm).trim().toLowerCase());if(p)rot[over]=p.id;});
-     t.bowlingRotation=rot;
-   });
-   update({...data,players,teams});
-   setMsg(`Imported ${parsed.teams.length} whole team(s) with Playing XI + bowling rotations.`);
- };
- return React.createElement('div',null,
-  React.createElement('div',{style:card},
-   React.createElement('div',{style:sectionTitle},'Add Whole Team'),
-   React.createElement('div',{style:{fontSize:11,color:C.textDim,marginBottom:10}},'Paste one or more complete team blocks. The importer creates/updates the team, all 11 players, batting order, WK/C/overseas markers, bowling types and the uploaded 20-over rotation.'),
-   React.createElement('textarea',{value:bulkText,onChange:e=>setBulkText(e.target.value),style:{...input,minHeight:260,fontFamily:mono,fontSize:11},placeholder:`[GT] PLAYING XI\n\n1. Finn Allen ( WK ) ✈️\n   Bat Avg - 34.90 | SR - 214.11 | HS - 100*\n\n2. MS Dhoni\n   Bat Avg - 53.66 | SR - 220.54 | HS - 37*\n\n...\n\n[GT] BOWLING ROTATION |\n#7 Mitchell Starc: 1, 6, 18, 20\n#8 Rashid Khan: 2, 4, 10, 16\n#9 Anshul Kamboj: 3, 15, 17, 19`}),
-   React.createElement('div',{style:{display:'flex',gap:8,marginTop:10,alignItems:'center',flexWrap:'wrap'}},
-    React.createElement('button',{style:btnPrimary,onClick:importTeams},'Import Whole Team(s)'),
-    React.createElement('button',{style:btn,onClick:()=>{setBulkText('');setMsg('');setWarnings([])}},'Clear'),
-    msg&&React.createElement('span',{style:{fontSize:11,color:C.accent2}},msg)),
-   warnings.length>0&&React.createElement('div',{style:{marginTop:9,color:C.red,fontSize:10}},warnings.map((w,i)=>React.createElement('div',{key:i},'• ',w))),
-   React.createElement('div',{style:{marginTop:12,padding:10,border:`1px solid ${C.lineSoft}`,borderRadius:8,fontSize:10.5,color:C.textDim}},'Tip: You can paste multiple [TEAM] PLAYING XI blocks in one go. HS is stored for display only and never affects simulation. Formatting can be imperfect.')
-  )
- );
-}
 function PlayersTab({data,update}){
  const [bulkText,setBulkText]=useState(''),[msg,setMsg]=useState(''),[warnings,setWarnings]=useState([]),[editing,setEditing]=useState(null),[draft,setDraft]=useState({});
  const importPlayingXIs=()=>{const parsed=parsePlayingXIText(bulkText);setWarnings(parsed.warnings);if(!parsed.teams.length){setMsg('No valid team blocks found.');return;}let players=[...data.players],teams=[...data.teams];parsed.teams.forEach(src=>{let t=teams.find(x=>x.name.toLowerCase()===src.name.toLowerCase());if(!t){t={id:nid('t'),name:src.name,squad:[],xiOrder:[],groundName:'',homeGroundId:'',bowlingRotation:{}};teams.push(t);}const ids=[];src.players.forEach(p=>{let ex=players.find(x=>x.name.toLowerCase()===p.name.toLowerCase());if(!ex){ex={id:nid('p'),name:p.name,avg:p.avg,sr:p.sr,hs:p.hs,isBowler:p.isBowler,bowlAvg:p.bowlAvg,bowlSR:p.bowlSR,econ:p.econ,bowlingType:p.bowlingType||'',isSpin:/spin/i.test(p.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain};players.push(ex);}else Object.assign(ex,{avg:p.avg,sr:p.sr,hs:p.hs??ex.hs??null,isBowler:p.isBowler,bowlAvg:p.bowlAvg??ex.bowlAvg??null,bowlSR:p.bowlSR??ex.bowlSR??null,econ:p.econ??ex.econ??null,bowlingType:p.bowlingType||ex.bowlingType||'',isSpin:/spin/i.test(p.bowlingType||ex.bowlingType||''),isWK:p.isWK,isCaptain:p.isCaptain});ids.push(ex.id);});t.squad=ids;t.xiOrder=src.players.sort((a,b)=>a.order-b.order).map(p=>players.find(x=>x.name.toLowerCase()===p.name.toLowerCase())?.id).filter(Boolean);const rot={};Object.entries(src.rotation||{}).forEach(([o,nm])=>{const p=players.find(x=>x.name.toLowerCase()===String(nm).toLowerCase());if(p)rot[o]=p.id;});t.bowlingRotation=rot;});update({...data,players,teams});setMsg(`Imported ${parsed.teams.length} team(s). Bowling rotations saved.`);};
@@ -1219,59 +1004,58 @@ function buildScorecardExportHTML(result,teamAName,teamBName){
  const overs=(inn)=>{const balls=inn?.deliveries?.length||0;return `${Math.floor(balls/6)}.${balls%6}`;};
  const runRate=(inn)=>{const balls=inn?.deliveries?.length||0;return balls?(inn.totalRuns/(balls/6)).toFixed(2):'-';};
  const maidens=(inn,bowlerId)=>{
-   const ds=(inn?.deliveries||[]).filter(d=>d.bowlerId===bowlerId || (d.bowlerId==null && d.bowlerName===d.bowler));
+   const ds=(inn?.deliveries||[]).filter(d=>d.bowlerId===bowlerId);
    const by={}; ds.forEach(d=>{const k=d.over;if(!by[k])by[k]=0;by[k]+=Number(d.runs||0);});
    return Object.values(by).filter(r=>r===0).length;
  };
- const bowlData=(inn,b)=>{const balls=b.balls||0;const o=Math.floor(balls/6)+(balls%6)/10;const econ=balls?b.runs/(balls/6):0;const maid=maidens(inn,b.id);return {o:balls?o.toFixed(1):'0.0',m:maid,r:b.runs,w:b.wkts,e:balls?econ.toFixed(2):'-'};};
+ const bowlData=(inn,b)=>{const balls=b.balls||0;const o=balls?`${Math.floor(balls/6)}.${balls%6}`:'0.0';const econ=balls?b.runs/(balls/6):0;return {o,m:maidens(inn,b.id),r:b.runs,w:b.wkts,e:balls?econ.toFixed(2):'-'};};
  const verificationTable=(teamName,rows)=>{
-   let h='<section class="verification"><h2>✓ Pre-Match Updated Tier Verification — '+escapeHtml(teamName)+'</h2><table><thead><tr><th>Player</th><th>Role</th><th>Base Stats</th><th>Pitch Modifier</th><th>Adjusted Stats</th><th>New Assigned Tier Archetype</th></tr></thead><tbody>';
-   (rows||[]).forEach(v=>{
+   if(!Array.isArray(rows)||!rows.length) return '';
+   let h=`<section class="verification"><div class="section-title">✓ Pre-Match Updated Tier Verification — ${escapeHtml(teamName)}</div><table><thead><tr><th>Player</th><th>Role</th><th>Base Stats</th><th>Pitch Modifier</th><th>Adjusted Stats</th><th>New Assigned Tier Archetype</th></tr></thead><tbody>`;
+   rows.forEach(v=>{
      const bowl=v.bowl;
-     const base=bowl?`Econ ${fmt(bowl.econ,2)} / SR ${fmt(bowl.bowlSR,1)} / Avg ${fmt(bowl.bowlAvg,1)}`:`Avg ${v.batBase.avg} / SR ${v.batBase.sr}`;
-     const adjusted=bowl?`Econ ${fmt(bowl.econ,2)} / SR ${fmt(bowl.bowlSR,1)} / Avg ${fmt(bowl.bowlAvg,1)}`:`Avg ${fmt(v.batAdjusted.avg,2)} / SR ${fmt(v.batAdjusted.sr,2)}`;
-     const mod=bowl?`${bowl.effectiveness>1?'+':bowl.effectiveness<1?'-':'0'}${Math.abs((bowl.effectiveness-1)*100).toFixed(0)}% effectiveness`:`Avg ${v.batModifier.avg>=0?'+':''}${v.batModifier.avg.toFixed(0)}% · SR ${v.batModifier.sr>=0?'+':''}${v.batModifier.sr.toFixed(0)}%`;
-     h+=`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.role)}</td><td>${base}</td><td>${mod}</td><td>${adjusted}</td><td><b>${escapeHtml(bowl?bowl.class.archetype:v.batTier)}</b></td></tr>`;
+     const base=bowl?`Econ ${fmt(bowl.econ,2)} / SR ${fmt(bowl.bowlSR,1)} / Avg ${fmt(bowl.bowlAvg,1)}`:`Avg ${fmt(v.batBase?.avg,2)} / SR ${fmt(v.batBase?.sr,2)}`;
+     const adjusted=bowl?base:`Avg ${fmt(v.batAdjusted?.avg,2)} / SR ${fmt(v.batAdjusted?.sr,2)}`;
+     const mod=bowl?`${bowl.effectiveness>1?'+':bowl.effectiveness<1?'-':'0'}${Math.abs((bowl.effectiveness-1)*100).toFixed(0)}% effectiveness`:`Avg ${v.batModifier?.avg>=0?'+':''}${fmt(v.batModifier?.avg,0)}% · SR ${v.batModifier?.sr>=0?'+':''}${fmt(v.batModifier?.sr,0)}%`;
+     h+=`<tr><td>${escapeHtml(v.name)}</td><td>${escapeHtml(v.role||'')}</td><td>${base}</td><td>${mod}</td><td>${adjusted}</td><td><b>${escapeHtml(bowl?.class?.archetype||v.batTier||'-')}</b></td></tr>`;
    });
    return h+'</tbody></table></section>';
  };
  const inn=(x,title)=>{
-   let h=`<section class="innings"><div class="section-head"><h2>${escapeHtml(title)}</h2><strong>${x.totalRuns}/${x.totalWkts}</strong></div><div class="meta">Overs ${overs(x)} · Run Rate ${runRate(x)}</div>`;
-   h+='<h3>Batting</h3><table class="bat"><thead><tr><th>Batter</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr></thead><tbody>';
-   x.battingCard.forEach(b=>{
-     const dis=b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out';
-     h+=`<tr><td>${escapeHtml(b.name)}${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td class="dismissal">${escapeHtml(dis)}</td></tr>`;
-   });
+   let h=`<section class="innings"><div class="section-head"><div><h2>${escapeHtml(title)}</h2><div class="meta">Overs ${overs(x)} · Run Rate ${runRate(x)}</div></div><strong class="score">${x.totalRuns}/${x.totalWkts}</strong></div>`;
+   h+='<div class="subhead">BATTING</div><table><thead><tr><th>Batter</th><th>R</th><th>B</th><th>SR</th><th>4s</th><th>6s</th><th>Dismissal</th></tr></thead><tbody>';
+   x.battingCard.forEach(b=>{const dis=b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out';h+=`<tr><td><b>${escapeHtml(b.name)}</b>${!b.out&&b.balls>0?' *':''}</td><td>${b.runs}</td><td>${b.balls}</td><td>${b.balls?((b.runs/b.balls)*100).toFixed(1):'-'}</td><td>${b.fours}</td><td>${b.sixes}</td><td class="dismissal">${escapeHtml(dis)}</td></tr>`;});
    h+='</tbody></table>';
-   h+='<div class="two-col"><div><h3>Bowling</h3><table><thead><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>';
+   h+='<div class="grid2"><div><div class="subhead">BOWLING</div><table><thead><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>';
    x.bowlingCard.forEach(b=>{const z=bowlData(x,b);h+=`<tr><td>${escapeHtml(b.name)}</td><td>${z.o}</td><td>${z.m}</td><td>${z.r}</td><td>${z.w}</td><td>${z.e}</td></tr>`;});
-   h+='</tbody></table></div><div><h3>Innings Summary</h3><div class="summary-box"><b>Total:</b> '+x.totalRuns+'/'+x.totalWkts+'<br><b>Overs:</b> '+overs(x)+'<br><b>Run rate:</b> '+runRate(x)+'<br><b>Extras:</b> 0 <span class="note">(no separate extras are generated by the current engine)</span></div></div></div>';
-   if(x.fallOfWickets?.length){h+='<h3>Fall of Wickets</h3><ol class="fow">';x.fallOfWickets.forEach(f=>{const d=f.dismissal?`${f.dismissal.type}${f.dismissal.bowler?' b '+f.dismissal.bowler:''}${f.dismissal.fielder?' · '+f.dismissal.fielder:''}`:'Wicket';h+=`<li><b>${escapeHtml(f.batter)}</b> — ${f.score} at ${f.over} — ${escapeHtml(d)}</li>`;});h+='</ol>';}
-   if(x.partnerships?.length){h+='<h3>Partnerships</h3><div class="partnerships">';x.partnerships.forEach((pp,i)=>{h+=`<span>${i+1}. ${pp.runs} runs (${pp.balls} balls)</span>`;});h+='</div>';}
+   h+='</tbody></table></div><div><div class="subhead">INNINGS SUMMARY</div><div class="summary"><b>Total</b> ${x.totalRuns}/${x.totalWkts}<br><b>Overs</b> ${overs(x)}<br><b>Run Rate</b> ${runRate(x)}<br><b>Extras</b> Not separately generated by current engine</div></div></div>';
+   if(x.fallOfWickets?.length){h+='<div class="subhead">FALL OF WICKETS</div><ol class="fow">';x.fallOfWickets.forEach(f=>{const d=f.dismissal?`${f.dismissal.type}${f.dismissal.bowler?' b '+f.dismissal.bowler:''}${f.dismissal.fielder?' · '+f.dismissal.fielder:''}`:'Wicket';h+=`<li><b>${escapeHtml(f.batter)}</b> — ${f.score} at ${f.over} — ${escapeHtml(d)}</li>`;});h+='</ol>';}
+   if(x.partnerships?.length){h+='<div class="subhead">PARTNERSHIPS</div><div class="partnerships">';x.partnerships.forEach((p,i)=>{h+=`<span>${i+1}. ${p.runs} runs (${p.balls} balls)</span>`;});h+='</div>';}
    return h+'</section>';
  };
  let html='<div class="export-card"><div class="brand">T20 CRICKET LEAGUE SIMULATOR</div>';
- html+=`<div class="match-title"><span>${escapeHtml(teamAName)}</span><b>vs</b><span>${escapeHtml(teamBName)}</span></div>`;
+ html+=`<div class="match-title">${escapeHtml(teamAName)} <span>vs</span> ${escapeHtml(teamBName)}</div>`;
  if(result.resimulated) html+='<div class="resim">RESIMULATED MATCH</div>';
- html+=`<div class="result-banner"><b>${escapeHtml(result.margin)}</b><span>${escapeHtml(teamAName)} ${result.inn1.totalRuns}/${result.inn1.totalWkts} · ${escapeHtml(teamBName)} ${result.inn2.totalRuns}/${result.inn2.totalWkts}</span></div>`;
+ html+=`<div class="result-banner"><b>${escapeHtml(result.margin||'')}</b><span>${escapeHtml(teamAName)} ${result.inn1.totalRuns}/${result.inn1.totalWkts} · ${escapeHtml(teamBName)} ${result.inn2.totalRuns}/${result.inn2.totalWkts}</span></div>`;
  html+='<div class="match-meta">';
- if(result.toss) html+=`<span><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}</span>`;
+ if(result.toss) html+=`<span><b>Toss:</b> ${escapeHtml(result.toss.winnerName)} won and chose to ${escapeHtml(result.toss.decision)}.</span>`;
  if(result.pitchName) html+=`<span><b>Pitch / Venue:</b> ${escapeHtml(result.pitchName)}</span>`;
  if(result.playerOfMatch) html+=`<span><b>Player of the Match:</b> ${escapeHtml(result.playerOfMatch.name)}</span>`;
  if(result.date) html+=`<span><b>Date:</b> ${escapeHtml(new Date(result.date).toLocaleString())}</span>`;
  html+='</div>';
  html+=inn(result.inn1,teamAName+' innings');
  html+=inn(result.inn2,teamBName+' innings');
- if(result.superOver) html+=`<section class="super"><h2>SUPER OVER</h2><div>${escapeHtml(teamAName)} <b>${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts}</b> · ${escapeHtml(teamBName)} <b>${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</b></div></section>`;
- html+='<div class="page-break"></div>';
+ if(result.superOver) html+=`<section class="super"><div class="section-title">SUPER OVER</div><div>${escapeHtml(teamAName)} <b>${result.superOver.teamA.totalRuns}/${result.superOver.teamA.totalWkts}</b> · ${escapeHtml(teamBName)} <b>${result.superOver.teamB.totalRuns}/${result.superOver.teamB.totalWkts}</b></div></section>`;
  html+=verificationTable(teamAName,result.verification?.teamA);
  html+=verificationTable(teamBName,result.verification?.teamB);
  html+='<div class="engine-note"><b>Simulation record:</b> Uploaded player statistics and pitch conditions are the masters. HS is metadata only and does not affect simulation. Uploaded bowling rotations are followed unless manually overridden for the match.</div>';
  return html+'</div>';
 }
+function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
+function exportScorecardPDF() { document.body.classList.add("printing-scorecard"); window.setTimeout(() => { window.print(); window.setTimeout(() => document.body.classList.remove("printing-scorecard"), 500); }, 50); }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}.resim{display:inline-block;padding:7px 11px;border:1px solid #C15B4A;color:#C15B4A;font-weight:800;border-radius:999px;font-size:13px;margin:4px 0 10px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1800"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="background:#081410;color:#F1F5F1;padding:48px;font-family:Arial,sans-serif;width:1400px;height:1800px">${html}<style>h1{font-size:34px;color:#E0B85A;margin:0 0 6px}p.sub{color:#5FBF87;font-size:20px}section{background:#102821;border:1px solid #1F4432;border-radius:16px;padding:24px;margin:24px 0}h2{font-size:24px;color:#E0B85A;margin:0 0 18px}h3{font-size:16px;color:#5FBF87}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:9px;border-bottom:1px solid #173629}th{color:#93AD9F;text-transform:uppercase;font-size:11px}</style></div></foreignObject></svg>`;
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -1309,27 +1093,19 @@ function SimpleTable({headers,rows}){
  );
 }
 function Scorecard({innings,title}){
- const overs=(innings.deliveries?.length||0); const ov=`${Math.floor(overs/6)}.${overs%6}`; const rr=overs?(innings.totalRuns/(overs/6)).toFixed(2):'-';
- const battingRows=innings.battingCard.map(b=>[
-   b.name+(!b.out&&b.balls>0?' *':'') , b.runs,b.balls,b.balls?((b.runs/b.balls)*100).toFixed(1):'-',b.fours,b.sixes,
-   b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out'
- ]);
- const maidens=(bowlerId)=>{const by={};(innings.deliveries||[]).filter(d=>d.bowlerId===bowlerId || d.bowler===innings.bowlingCard.find(x=>x.id===bowlerId)?.name).forEach(d=>{by[d.over]=(by[d.over]||0)+Number(d.runs||0)});return Object.values(by).filter(r=>r===0).length;};
- const bowlRows=innings.bowlingCard.map(b=>{const balls=b.balls||0;return[b.name,balls?(Math.floor(balls/6)+(balls%6)/10).toFixed(1):'0.0',maidens(b.id),b.runs,b.wkts,balls?(b.runs/(balls/6)).toFixed(2):'-'];});
- return React.createElement('div',{style:{...card,width:'100%',padding:16,marginBottom:12}},
-  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`2px solid ${C.line}`,paddingBottom:8}},React.createElement('b',{style:{color:C.accent,fontSize:13}},title),React.createElement('b',{style:{fontSize:22}},`${innings.totalRuns}/${innings.totalWkts}`)),
-  React.createElement('div',{style:{display:'flex',gap:14,fontSize:10.5,color:C.textDim,marginTop:5,flexWrap:'wrap'}},`Overs: ${ov}`,`Run Rate: ${rr}`,`Extras: 0`),
-  React.createElement('div',{style:{marginTop:10}},React.createElement(SimpleTable,{headers:['Batter','R','B','SR','4s','6s','Dismissal'],rows:battingRows})),
-  React.createElement('div',{style:{fontWeight:700,color:C.accent,margin:'14px 0 6px',fontSize:11}},'Bowling'),
-  React.createElement(SimpleTable,{headers:['Bowler','O','M','R','W','Econ'],rows:bowlRows}),
-  React.createElement('div',{style:{marginTop:12,fontSize:10.5,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Fall of Wickets'),innings.fallOfWickets?.length?innings.fallOfWickets.map(f=>React.createElement('div',{key:f.wicket},`${f.wicket}. ${f.batter} — ${f.score} at ${f.over} — ${f.dismissal?.type||'Wicket'}${f.dismissal?.bowler?' b '+f.dismissal.bowler:''}${f.dismissal?.fielder?' · '+f.dismissal.fielder:''}`)):React.createElement('span',null,' None')),
-  React.createElement('div',{style:{marginTop:10,fontSize:10,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Partnerships'),innings.partnerships?.length?React.createElement('div',null,innings.partnerships.map((p,i)=>React.createElement('span',{key:i,style:{marginRight:12}},`${i+1}. ${p.runs} (${p.balls} balls)`))):React.createElement('span',null,' None'))
+ const battingRows=innings.battingCard.map(b=>[b.name+(!b.out&&b.balls>0?' *':''),b.runs,b.balls,b.balls?((b.runs/b.balls)*100).toFixed(1):'-',b.fours,b.sixes,b.dismissal?`${b.dismissal.type}${b.dismissal.bowler?' b '+b.dismissal.bowler:''}${b.dismissal.fielder?' · '+b.dismissal.fielder:''}`:'not out']);
+ const bowlRows=innings.bowlingCard.map(b=>[b.name,(b.balls/6).toFixed(1),b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):'-']);
+ return React.createElement('div',{style:{...card,flex:1,minWidth:300,padding:18}},
+  React.createElement('div',{style:{display:'flex',justifyContent:'space-between',borderBottom:`1px solid ${C.line}`,paddingBottom:10}},React.createElement('b',{style:{color:C.accent}},title),React.createElement('b',{style:{fontSize:19}},`${innings.totalRuns}/${innings.totalWkts}`)),
+  React.createElement('div',{style:{overflowX:'auto',marginTop:10}},React.createElement(SimpleTable,{headers:['Batter','R','B','SR','4s','6s','Dismissal'],rows:battingRows})),
+  React.createElement('div',{style:{fontWeight:700,color:C.accent,margin:'14px 0 7px'}},'Bowling'),
+  React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Bowler','O','R','W','Econ'],rows:bowlRows})),
+  innings.fallOfWickets?.length>0&&React.createElement('div',{style:{marginTop:12,fontSize:10.5,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Fall of Wickets'),innings.fallOfWickets.map(f=>React.createElement('div',{key:f.wicket},`${f.wicket}. ${f.batter} — ${f.score} (${f.over}) — ${f.dismissal?.type||'Wicket'}`))),
+  innings.partnerships?.length>0&&React.createElement('div',{style:{marginTop:12,fontSize:10.5,color:C.textDim}},React.createElement('b',{style:{color:C.accent}},'Partnerships: '),innings.partnerships.map((p,i)=>React.createElement('span',{key:i,style:{marginRight:8}},`${i+1}: ${p.runs} (${p.balls}b)`)))
  );
 }
-
 // ============================================================================
 // TOURNAMENTS TAB
-
 function tournamentFormatInfo(format,n){
  const league=format==='double-round-robin'?n*(n-1):format==='groups-knockout'?(Math.ceil(n/2)*(Math.ceil(n/2)-1)/2+Math.floor(n/2)*(Math.floor(n/2)-1)/2):n*(n-1)/2;
  const playoff=(format==='round-robin-playoffs'||format==='double-round-robin')?([7,8].includes(n)?2:([9,10].includes(n)?4:0)):format==='knockout'?Math.max(1,n-1):format==='groups-knockout'?3:0;
@@ -1338,31 +1114,10 @@ function tournamentFormatInfo(format,n){
 function FormatGuide({format,n}){const x=tournamentFormatInfo(format,n);return React.createElement('div',{style:{...card,marginBottom:14,background:'linear-gradient(135deg,rgba(95,191,135,.12),rgba(224,184,90,.07))'}},React.createElement('div',{style:sectionTitle},React.createElement(Trophy,null),' Tournament Format Guide'),React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}},[['Teams',n],['League matches',x.league],['Playoff matches',x.playoff],['Total scheduled',x.total]].map(([k,v])=>React.createElement('div',{key:k,style:{background:C.panelAlt,border:`1px solid ${C.lineSoft}`,borderRadius:8,padding:10}},React.createElement('div',{style:eyebrow},k),React.createElement('div',{style:{fontSize:20,fontWeight:800,color:C.accent}},v)))));}
 function computePlayerStats(data){const out=new Map(data.players.map(p=>[p.id,{id:p.id,name:p.name,matches:0,runs:0,balls:0,fours:0,sixes:0,outs:0,wkts:0,bowlRuns:0,bowlBalls:0,bestW:0,bestR:Infinity}]));(data.matches||[]).forEach(m=>{[m.inn1,m.inn2].forEach(inn=>{inn.battingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.runs+=b.runs;r.balls+=b.balls;r.fours+=b.fours;r.sixes+=b.sixes;if(b.out)r.outs++;});inn.bowlingCard.forEach(b=>{const r=out.get(b.id);if(!r)return;r.matches=Math.max(r.matches,1);r.wkts+=b.wkts;r.bowlRuns+=b.runs;r.bowlBalls+=b.balls;if(b.wkts>r.bestW||(b.wkts===r.bestW&&b.runs<r.bestR)){r.bestW=b.wkts;r.bestR=b.runs;}});});});return [...out.values()].map(r=>({...r,batAvg:r.outs?(r.runs/r.outs).toFixed(2):'-',sr:r.balls?(r.runs/r.balls*100).toFixed(2):'-',bowlAvg:r.wkts?(r.bowlRuns/r.wkts).toFixed(2):'-',econ:r.bowlBalls?(r.bowlRuns/(r.bowlBalls/6)).toFixed(2):'-',best:r.bestW?`${r.bestW}/${r.bestR}`:'-'}));}
 function PlayerStatsTab({data}){const rows=computePlayerStats(data);return React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Award,null),' Player Statistics'),React.createElement('div',{style:{overflowX:'auto'}},React.createElement(SimpleTable,{headers:['Player','Matches','Runs','Bat Avg','SR','4s','6s','Wkts','Bowl Avg','Econ','Best'],rows:rows.map(r=>[r.name,r.matches,r.runs,r.batAvg,r.sr,r.fours,r.sixes,r.wkts,r.bowlAvg,r.econ,r.best])})));}
-function MatchViewer({m,onClose}){
- const verification=m.verification;
- return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.84)',zIndex:30,overflowY:'auto',padding:20}},
-  React.createElement('div',{className:'print-target',style:{maxWidth:1100,margin:'0 auto'}},
-   React.createElement('div',{style:{...card,marginBottom:12}},
-    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
-     React.createElement('div',null,React.createElement('div',{style:sectionTitle},m.teamAName,' vs ',m.teamBName),m.resimulated&&React.createElement('div',{style:{marginTop:4}},React.createElement(Badge,{color:C.red},'RESIMULATED MATCH'))),
-     React.createElement('button',{className:'no-print',style:btn,onClick:onClose},'Close')),
-    React.createElement('div',{style:{display:'flex',gap:14,flexWrap:'wrap',marginTop:8,fontSize:11}},
-     React.createElement('span',{style:{color:C.accent2,fontWeight:700}},m.margin),
-     m.toss&&React.createElement('span',{style:{color:C.textDim}},`Toss: ${m.toss.winnerName} won and chose to ${m.toss.decision}.`),
-     m.pitchName&&React.createElement('span',{style:{color:C.textDim}},`Pitch: ${m.pitchName}`),
-     m.playerOfMatch&&React.createElement('span',{style:{color:C.accent,fontWeight:700}},`Player of the Match: ${m.playerOfMatch.name}`))),
-   verification&&React.createElement(React.Fragment,null,React.createElement(VerificationTable,{verification:verification.teamA||[],teamName:m.teamAName}),React.createElement(VerificationTable,{verification:verification.teamB||[],teamName:m.teamBName})),
-   React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap'}},React.createElement(Scorecard,{innings:m.inn1,title:m.teamAName+' innings'}),React.createElement(Scorecard,{innings:m.inn2,title:m.teamBName+' innings'})),
-   m.superOver&&React.createElement('div',{style:{...card,marginTop:10,padding:12}},React.createElement('div',{style:sectionTitle},'SUPER OVER'),React.createElement('div',{style:{fontSize:12}},`${m.teamAName}: ${m.superOver.teamA.totalRuns}/${m.superOver.teamA.totalWkts} · ${m.teamBName}: ${m.superOver.teamB.totalRuns}/${m.superOver.teamB.totalWkts}`)),
-   React.createElement('button',{className:'no-print',style:{...btn,marginTop:10},onClick:()=>{document.body.classList.add('printing-scorecard');window.print();setTimeout(()=>document.body.classList.remove('printing-scorecard'),600)}},'Download / Print PDF')));
-}
+function MatchViewer({m,onClose}){return React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.84)',zIndex:30,overflowY:'auto',padding:20}},React.createElement('div',{className:'print-target',style:{maxWidth:1100,margin:'0 auto'}},React.createElement('div',{style:{...card,marginBottom:12}},React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},React.createElement('div',{style:sectionTitle},m.teamAName,' vs ',m.teamBName),React.createElement('button',{className:'no-print',style:btn,onClick:onClose},'Close')),React.createElement('div',{style:{fontSize:13,color:C.accent2,fontWeight:700}},m.margin),m.toss&&React.createElement('div',{style:{fontSize:11,color:C.textDim,marginTop:6}},`Toss: ${m.toss.winnerName} won and chose to ${m.toss.decision}.`),m.playerOfMatch&&React.createElement('div',{style:{fontSize:11,color:C.accent,marginTop:5}},`Player of the Match: ${m.playerOfMatch.name}`)),React.createElement('div',{style:{display:'flex',gap:12,flexWrap:'wrap'}},React.createElement(Scorecard,{innings:m.inn1,title:m.teamAName+' innings'}),React.createElement(Scorecard,{innings:m.inn2,title:m.teamBName+' innings'})),m.superOver&&React.createElement('div',{style:{...card,marginTop:12}},React.createElement('div',{style:sectionTitle},'SUPER OVER'),React.createElement('div',{style:{fontSize:12}},`${m.teamAName}: ${m.superOver.teamA.totalRuns}/${m.superOver.teamA.totalWkts} · ${m.teamBName}: ${m.superOver.teamB.totalRuns}/${m.superOver.teamB.totalWkts}`)),React.createElement('button',{className:'no-print',style:{...btn,marginTop:12},onClick:()=>{document.body.classList.add('printing-scorecard');window.print();setTimeout(()=>document.body.classList.remove('printing-scorecard'),600)}},'Download / Print PDF')));}
 function ArchiveTab({data}){
  const [selected,setSelected]=useState(null);
- const rows=data.matches.map(m=>React.createElement('div',{key:m.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:12,borderBottom:`1px solid ${C.lineSoft}`}},
-   React.createElement('div',null,
-    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}},React.createElement('b',null,`${m.teamAName} ${m.inn1.totalRuns}/${m.inn1.totalWkts} vs ${m.teamBName} ${m.inn2.totalRuns}/${m.inn2.totalWkts}`),m.resimulated&&React.createElement(Badge,{color:C.red},'RESIMULATED MATCH')),
-    React.createElement('div',{style:{fontSize:10.5,color:C.textDim}},m.margin,' · ',new Date(m.date).toLocaleString())),
-   React.createElement('button',{style:btn,onClick:()=>setSelected(m)},'Open Scorecard')));
+ const rows=data.matches.map(m=>React.createElement('div',{key:m.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,padding:12,borderBottom:`1px solid ${C.lineSoft}`}},React.createElement('div',null,React.createElement('b',null,`${m.teamAName} ${m.inn1.totalRuns}/${m.inn1.totalWkts} vs ${m.teamBName} ${m.inn2.totalRuns}/${m.inn2.totalWkts}`),React.createElement('div',{style:{fontSize:10.5,color:C.textDim}},m.margin,' · ',new Date(m.date).toLocaleString())),React.createElement('button',{style:btn,onClick:()=>setSelected(m)},'Open Scorecard')));
  return React.createElement(React.Fragment,null,React.createElement('div',{style:card},React.createElement('div',{style:sectionTitle},React.createElement(Clock,null),' Completed Match Archive'),data.matches.length?rows:React.createElement(EmptyState,{icon:Clock,text:'No completed matches yet.'})),selected&&React.createElement(MatchViewer,{m:selected,onClose:()=>setSelected(null)}));
 }
 function BackupRestore({data,update}){const ref=React.useRef(null);return React.createElement('div',{style:{...card,marginTop:16}},React.createElement('div',{style:sectionTitle},'Backup & Restore'),React.createElement('div',{style:{display:'flex',gap:8}},React.createElement('button',{style:btn,onClick:()=>downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'t20-league-backup.json')},'Export Backup'),React.createElement('button',{style:btn,onClick:()=>ref.current?.click()},'Import Backup'),React.createElement('input',{ref,type:'file',accept:'application/json',style:{display:'none'},onChange:e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{update(normalizeStoredRotations({...EMPTY_DATA,...JSON.parse(r.result)}));alert('Backup restored.');}catch(err){alert('Invalid backup.');}};r.readAsText(f)}})));}
@@ -1408,23 +1163,15 @@ function PlayMatchTab({ data, update, prefill }) {
             const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
             if (existing && !window.confirm("This fixture already has a completed result. Resimulate it and make the new result the latest result?")) return;
             const r = playMatch(teamA, teamB, pitch, effRotA, effRotB, playerLookup);
-            r.resimulated = !!existing;
-            r.date = new Date().toISOString();
-            r.pitchName = pitch.name;
-            r.pitchCategory = pitch.category;
             setResult(r);
             const record = {
                 id: nid("m"), date: new Date().toISOString(), teamAId, teamBId, teamAName: teamA.name, teamBName: teamB.name,
                 pitchName: pitch.name, pitchCategory: pitch.category, inn1: r.inn1, inn2: r.inn2, winnerId: r.winnerId, margin: r.margin,
                 playerOfMatch: r.playerOfMatch, verification: r.verification, toss: r.toss, superOver: r.superOver,
-                tournamentId: prefill?.tournamentId || existing?.tournamentId || null, fixtureId: prefill?.fixtureId || existing?.fixtureId || null,
+                tournamentId: prefill?.tournamentId || null, fixtureId: prefill?.fixtureId || null,
                 resimulated: !!existing, resimulationOf: existing?.id || null,
             };
-            // Keep one current result per scheduled fixture. A re-simulation replaces the old result
-            // so tournament tables/player records never double-count the same fixture. The marker
-            // remains on the replacement record so the archive and scorecard clearly identify it.
-            const nextMatches = existing ? data.matches.filter(m => m.id !== existing.id) : data.matches;
-            update({ ...data, matches: [record, ...nextMatches] });
+            update({ ...data, matches: [record, ...data.matches] });
         }
         catch (e) {
             window.alert(e.message || "The match could not be simulated.");
@@ -1823,8 +1570,6 @@ function App() {
             React.createElement("style", null, `@keyframes spin { to { transform: rotate(360deg); } }`)));
     const TABS = [
         { key: "players", label: "Players", icon: Users },
-        { key: "addplayer", label: "Add Player", icon: Plus },
-        { key: "addteam", label: "Add Team", icon: Shield },
         { key: "playerstats", label: "Player Stats", icon: Award },
         { key: "pitches", label: "Pitches", icon: MapPin },
         { key: "teams", label: "Teams", icon: Shield },
@@ -1859,8 +1604,6 @@ function App() {
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 22, flexWrap: "wrap", borderBottom: `1px solid ${C.line}`, paddingBottom: 16 } }, TABS.map((t) => React.createElement(Tab, { key: t.key, label: t.label, icon: t.icon, active: tab === t.key, onClick: () => { setTab(t.key); if (t.key !== "play")
                     setPrefill(null); } }))),
             tab === "players" && React.createElement(PlayersTab, { data: data, update: update }),
-            tab === "addplayer" && React.createElement(AddPlayerTab, { data: data, update: update }),
-            tab === "addteam" && React.createElement(AddTeamTab, { data: data, update: update }),
             tab === "playerstats" && React.createElement(PlayerStatsTab, { data: data }),
             tab === "pitches" && React.createElement(PitchesTab, { data: data, update: update }),
             tab === "teams" && React.createElement(TeamsTab, { data: data, update: update }),
