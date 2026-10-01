@@ -583,7 +583,7 @@ function parsePlayingXIText(text) {
                 current.bowlingType = bt[1].trim();
                 return;
             }
-            const bowl = line.match(/Bowl\s*(?:Avg\s*[-:]\s*([\d.]+)\s*\|\s*)?(?:SR\s*[-:]\s*([\d.]+))\s*\|\s*Econ\s*[-:]\s*([\d.]+)/i);
+            const bowl = line.match(/^\|?\s*Bowl\s*(?:Avg\s*[-:]\s*([\d.]+)\s*\|\s*)?(?:SR\s*[-:]\s*([\d.]+))\s*\|\s*Econ\s*[-:]\s*([\d.]+)/i);
             if (bowl) {
                 current.bowlAvg = bowl[1] ? Number(bowl[1]) : null;
                 current.bowlSR = bowl[2] ? Number(bowl[2]) : null;
