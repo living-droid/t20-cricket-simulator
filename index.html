@@ -1213,6 +1213,143 @@ function PlayMatchTab({ data, update, prefill }) {
                 d.outcome === "W" ? "WICKET" : d.outcome))))))))))));
 }
 
+function generateRoundRobin(teamIds) {
+    const ids = [...teamIds];
+    if (ids.length < 2)
+        return [];
+    if (ids.length % 2)
+        ids.push(null);
+    const rounds = ids.length - 1, half = ids.length / 2, fixtures = [];
+    let matchNo = 0;
+    for (let r = 0; r < rounds; r++) {
+        for (let i = 0; i < half; i++) {
+            const a = ids[i], b = ids[ids.length - 1 - i];
+            if (a && b) {
+                matchNo += 1;
+                fixtures.push({ id: nid("fx"), teamAId: a, teamBId: b, round: `Matchday ${r + 1}`, matchNo, played: false });
+            }
+        }
+        ids.splice(1, 0, ids.pop());
+    }
+    return fixtures;
+}
+function generateDoubleRoundRobin(teamIds) {
+    const first = generateRoundRobin(teamIds);
+    const second = first.map((f) => ({ ...f, id: nid("fx"), teamAId: f.teamBId, teamBId: f.teamAId, round: f.round.replace("Matchday", "Matchday 2nd Leg") }));
+    return [...first, ...second].map((f, i) => ({ ...f, matchNo: i + 1 }));
+}
+function nextPowerOfTwo(n) {
+    let p = 1;
+    while (p < n)
+        p *= 2;
+    return p;
+}
+function knockoutLabelForCount(n) {
+    if (n === 2)
+        return "Final";
+    if (n === 4)
+        return "Semi Finals";
+    if (n === 8)
+        return "Quarter Finals";
+    if (n === 16)
+        return "Round of 16";
+    return "Knockout Round";
+}
+function generateKnockoutInitial(teamIds) {
+    const ids = [...teamIds];
+    if (ids.length < 2)
+        return { fixtures: [], stage: "Final", byeTeamIds: [] };
+    const size = nextPowerOfTwo(ids.length);
+    const prelimMatches = ids.length - size / 2;
+    if (prelimMatches <= 0) {
+        const fixtures = [];
+        for (let i = 0; i < ids.length; i += 2)
+            fixtures.push({ id: nid("fx"), teamAId: ids[i], teamBId: ids[i + 1], round: knockoutLabelForCount(ids.length), played: false });
+        return { fixtures: fixtures.map((f, i) => ({ ...f, matchNo: i + 1 })), stage: knockoutLabelForCount(ids.length), byeTeamIds: [] };
+    }
+    const fixtures = [];
+    for (let i = 0; i < prelimMatches * 2; i += 2) {
+        fixtures.push({ id: nid("fx"), teamAId: ids[i], teamBId: ids[i + 1], round: "Preliminary Round", matchNo: fixtures.length + 1, played: false });
+    }
+    return { fixtures, stage: "Preliminary Round", byeTeamIds: ids.slice(prelimMatches * 2) };
+}
+function getWinnersForFixtures(fixtures, matches) {
+    return fixtures.map((f) => getLatestFixtureMatch(matches, f.id)?.winnerId).filter(Boolean);
+}
+function playoffConfigForCount(n) {
+    if (n === 7 || n === 8) return { fixtures: [
+        { teamARef: "RANK2", teamBRef: "RANK3", round: "Qualifier" },
+        { teamARef: "RANK1", teamBRef: "WINNER:Qualifier", round: "Final" },
+    ]};
+    if (n === 9 || n === 10) return { fixtures: [
+        { teamARef: "RANK1", teamBRef: "RANK2", round: "Qualifier 1" },
+        { teamARef: "RANK3", teamBRef: "RANK4", round: "Eliminator" },
+        { teamARef: "LOSER:Qualifier 1", teamBRef: "WINNER:Eliminator", round: "Qualifier 2" },
+        { teamARef: "WINNER:Qualifier 1", teamBRef: "WINNER:Qualifier 2", round: "Final" },
+    ]};
+    return null;
+}
+function makeAutoPlayoffFixtures(teamCount, leagueMatchCount) {
+    const cfg = playoffConfigForCount(teamCount);
+    if (!cfg) return [];
+    return cfg.fixtures.map((f, i) => ({ id: nid("fx"), teamAId: null, teamBId: null, teamARef: f.teamARef, teamBRef: f.teamBRef, round: f.round, matchNo: leagueMatchCount + i + 1, played: false }));
+}
+function playoffTeamId(ref, tn, matches, teams) {
+    if (!ref) return null;
+    if (ref.startsWith("RANK")) {
+        const mainDone = (tn.fixtures || []).length > 0 && (tn.fixtures || []).every(f => !!getLatestFixtureMatch(matches, f.id));
+        if (!mainDone) return null;
+        return computePointsTable(tn, matches, teams)[Number(ref.slice(4)) - 1]?.teamId || null;
+    }
+    const m = ref.match(/^(WINNER|LOSER):(.+)$/);
+    if (!m) return null;
+    const fx = (tn.playoffFixtures || []).find(f => f.round === m[2]);
+    const result = fx ? getLatestFixtureMatch(matches, fx.id) : null;
+    if (!result || !result.winnerId) return null;
+    return m[1] === "WINNER" ? result.winnerId : (result.teamAId === result.winnerId ? result.teamBId : result.teamAId);
+}
+function resolvePlayoffFixture(fx, tn, matches, teams) {
+    if (!fx?.teamARef && !fx?.teamBRef) return fx;
+    return { ...fx, teamAId: playoffTeamId(fx.teamARef, tn, matches, teams), teamBId: playoffTeamId(fx.teamBRef, tn, matches, teams) };
+}
+function migrateAutoPlayoffs(data) {
+    let changed = false;
+    const tournaments = data.tournaments.map(tn => {
+        const eligible = (tn.format === "double-round-robin" || tn.format === "round-robin-playoffs") && [7,8,9,10].includes((tn.teamIds || []).length);
+        if (!eligible || (tn.playoffFixtures || []).length) return tn;
+        changed = true;
+        return { ...tn, playoffFixtures: makeAutoPlayoffFixtures(tn.teamIds.length, (tn.fixtures || []).length) };
+    });
+    return changed ? { ...data, tournaments } : data;
+}
+function generateNextKnockoutRound(tn, matches) {
+    const current = tn.knockoutStage || "Preliminary Round";
+    const currentFixtures = (tn.playoffFixtures || []).filter((f) => f.round === current);
+    if (!currentFixtures.length || !currentFixtures.every((f) => matches.some((m) => m.fixtureId === f.id)))
+        return null;
+    const winners = getWinnersForFixtures(currentFixtures, matches);
+    const bye = current === "Preliminary Round" ? (tn.knockoutByeTeamIds || []) : [];
+    const teams = [...winners, ...bye];
+    if (teams.length < 2)
+        return null;
+    const nextStage = knockoutLabelForCount(teams.length);
+    const fixtures = [];
+    for (let i = 0; i < teams.length; i += 2) {
+        if (!teams[i + 1])
+            continue;
+        fixtures.push({ id: nid("fx"), teamAId: teams[i], teamBId: teams[i + 1], round: nextStage, matchNo: fixtures.length + 1, played: false });
+    }
+    return { fixtures, stage: nextStage };
+}
+function formatInfo(format, n) {
+    const teams=Number(n)||0; const rr=teams*(teams-1)/2; const dr=teams*(teams-1);
+    if(format==="round-robin") return {desc:"Every team plays every other team once.", per:Math.max(0,teams-1), league:rr, playoffs:0,total:rr};
+    if(format==="double-round-robin") return {desc:"Every team plays every other team twice.", per:Math.max(0,2*(teams-1)), league:dr, playoffs:([7,8,9,10].includes(teams)?(teams<=8?2:4):0), total:dr+([7,8,9,10].includes(teams)?(teams<=8?2:4):0)};
+    if(format==="round-robin-playoffs") return {desc:"Single round robin followed by playoffs.", per:Math.max(0,teams-1), league:rr, playoffs:([7,8,9,10].includes(teams)?(teams<=8?2:4):4), total:rr+([7,8,9,10].includes(teams)?(teams<=8?2:4):4)};
+    if(format==="knockout") { const total=Math.max(0,teams-1); return {desc:"Single-elimination knockout. One loss eliminates a team.",per:"Varies",league:0,playoffs:total,total}; }
+    const a=Math.ceil(teams/2),b=teams-a; const league=(a*(a-1)/2)+(b*(b-1)/2); return {desc:"Two groups, then knockout playoffs.",per:"Varies",league,playoffs:4,total:league+4};
+}
+
 function TournamentsTab({ data, update, onPlayFixture }) {
     const [name, setName] = useState("");
     const [selectedTeams, setSelectedTeams] = useState([]);
@@ -1565,6 +1702,14 @@ function App() {
             tab === "records" && React.createElement(RecordsTab, { data: data }),
             tab === "history" && React.createElement(HistoryTab, { data: data, update: update }))));
 }
-document.getElementById("startup").style.display = "none";
-ReactDOM.render(React.createElement(App, null), document.getElementById('root'));
+try {
+    ReactDOM.render(React.createElement(App, null), document.getElementById("root"));
+    document.getElementById("startup").style.display = "none";
+} catch (e) {
+    const s = document.getElementById("startup");
+    if (s) {
+        s.style.display = "block";
+        s.innerHTML = '<div style="max-width:760px;margin:auto;text-align:left"><h2 style="color:#E0B85A">Simulator could not start</h2><pre style="white-space:pre-wrap;color:#E6EFEA">' + String(e && e.stack || e).replace(/[<>]/g, "") + '</pre></div>';
+    }
+}
 </script></body></html>
