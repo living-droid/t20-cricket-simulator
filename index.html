@@ -773,7 +773,7 @@ function mergeImportedData(data, parsed) {
         if (!team) {
             if (teams.length >= 10)
                 return;
-            team = { id: nid("t"), name: sourceTeam.name, squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+            team = { id: nid("t"), name: sourceTeam.name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
             teams.push(team);
             teamByName.set(sourceTeam.name.toLowerCase(), team);
         }
@@ -1012,7 +1012,7 @@ function TeamsTab({ data, update }) {
     const addTeam = () => {
         if (!name.trim() || data.teams.length >= 10)
             return;
-        const t = { id: nid("t"), name, squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+        const t = { id: nid("t"), name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
         update({ ...data, teams: [...data.teams, t] });
         setName("");
         setEditingId(t.id);
@@ -1053,6 +1053,14 @@ function TeamsTab({ data, update }) {
                     t.groundName))))),
         React.createElement("div", { style: card }, !editing ? (React.createElement(EmptyState, { icon: Shield, text: "Select a team to set its home ground, squad, and Playing XI." })) : (React.createElement("div", null,
             React.createElement("div", { style: sectionTitle }, editing.name),
+            React.createElement("div", { style: { background: C.panelAlt, borderRadius: 9, padding: 14, marginBottom: 16, border: `1px solid ${C.lineSoft}` } },
+                React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
+                    "Team Color"),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                    React.createElement("input", { type: "color", value: editing.color || "#1D6B47", onChange: (e) => updateTeam(editing.id, { color: e.target.value }), style: { width: 44, height: 34, padding: 2, borderRadius: 7, border: `1px solid ${C.line}`, background: C.panel, cursor: "pointer" } }),
+                    React.createElement("span", { style: { fontSize: 11, color: C.textDim, fontFamily: mono } }, (editing.color || "#1D6B47").toUpperCase()),
+                    React.createElement("span", { style: { width: 14, height: 14, borderRadius: 50, background: editing.color || "#1D6B47", border: `1px solid ${C.line}`, display: "inline-block" } })
+                )),
             React.createElement("div", { style: { background: C.panelAlt, borderRadius: 9, padding: 14, marginBottom: 16, border: `1px solid ${C.lineSoft}` } },
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
                     React.createElement(Home, { size: 11 }),
@@ -1234,6 +1242,16 @@ function pdfRect(cmds,x,y,w,h,fill=[1,1,1],stroke=null,lw=1){
     if(stroke){ const [r,g,b]=stroke; cmds.push(`${r} ${g} ${b} RG ${lw} w ${x} ${y} ${w} ${h} re S`); }
 }
 function pdfLine(cmds,x1,y1,x2,y2,color=[0.82,0.85,0.89],lw=0.6){const [r,g,b]=color;cmds.push(`${r} ${g} ${b} RG ${lw} w ${x1} ${y1} m ${x2} ${y2} l S`);}
+function hexToPdfColor(hex, fallback=[0.12,0.42,0.28]) {
+    const m = String(hex || "").match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return fallback;
+    const n = parseInt(m[1], 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+function pdfTextColorFor(bg) {
+    const lum = 0.2126 * bg[0] + 0.7152 * bg[1] + 0.0722 * bg[2];
+    return lum > 0.62 ? [0.06,0.10,0.16] : [1,1,1];
+}
 function makeScorecardPDF(pages) {
     const objects=[]; const add=body=>{objects.push(body);return objects.length;};
     const font1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
@@ -1250,22 +1268,30 @@ function makeScorecardPDF(pages) {
 }
 function cricketOversFromBalls(balls){const n=Math.max(0,Number(balls)||0);return `${Math.floor(n/6)}.${n%6}`;}
 function cricketRR(runs,balls){const n=Number(balls)||0;return n?(Number(runs||0)/(n/6)).toFixed(2):"0.00";}
-function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName) {
+function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName, teamAColor="#1D6B47", teamBColor="#B34A3C") {
     const pages=[];
     const navy=[0.08,0.13,0.22], text=[0.19,0.25,0.35], muted=[0.36,0.43,0.54], line=[0.86,0.88,0.91], green=[0.00,0.48,0.34], greenBg=[0.91,0.98,0.95], gold=[0.88,0.60,0.00], red=[0.65,0.08,0.07], orange=[0.82,0.30,0.03], white=[1,1,1], pale=[0.96,0.97,0.98];
+    const teamAHeader=hexToPdfColor(teamAColor, gold);
+    const teamBHeader=hexToPdfColor(teamBColor, red);
+    const teamAText=pdfTextColorFor(teamAHeader);
+    const teamBText=pdfTextColorFor(teamBHeader);
     const verification=[...(result.verification?.teamA||[]),...(result.verification?.teamB||[])];
     const tossText=result.toss?.summary||"Toss not recorded";
     const matchLine=result.margin||`${teamAName} vs ${teamBName}`;
     const safeDismissal=(x,b)=>{if(!b.out)return b.balls>0?"not out":"did not bat";const d=x.deliveries?.find(z=>z.isWicket&&z.batter===b.name);return dismissalTextFromDelivery(d)||"out";};
     const extrasText=x=>{const e=x.extrasBreakdown||{};const total=Number(x.extras??((e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0)));return`${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;};
     const header=(cmds)=>{
-        pdfRect(cmds,40,708,515,116,[0.94,0.67,0.00]);pdfRect(cmds,300,708,255,116,[0.68,0.10,0.06]);
+        pdfRect(cmds,40,708,260,116,teamAHeader);pdfRect(cmds,300,708,255,116,teamBHeader);
         pdfRect(cmds,55,795,128,19,navy);pdfText(cmds,63,801,"T20 CRICKET LEAGUE · MATCH",7.5,true,white);
         pdfText(cmds,55,762,`${teamAName} vs ${teamBName}`,17,true,white);
-        pdfLine(cmds,55,752,540,752,[0.94,0.82,0.55],0.5);
-        pdfText(cmds,55,734,"VENUE",6.5,true,white);pdfText(cmds,55,719,String(venueName||"Not specified").slice(0,38),7.5,false,white);
-        pdfText(cmds,230,734,"PITCH CONDITION",6.5,true,white);pdfText(cmds,230,719,`${pitchName||"Pitch"}${pitchCategory?` (${pitchCategory})`:""}`.slice(0,45),7.5,false,white);
-        pdfText(cmds,420,734,"TOSS",6.5,true,white);pdfText(cmds,420,719,String(tossText).replace(/^.*?won/i, m=>m).slice(0,25),7.5,false,white);
+        pdfLine(cmds,55,752,540,752,[1,1,1],0.5);
+        pdfText(cmds,55,734,"VENUE",6.5,true,teamAText);pdfText(cmds,55,719,String(venueName||"Not specified").slice(0,38),7.5,false,teamAText);
+        pdfText(cmds,230,734,"PITCH CONDITION",6.5,true,teamAText);pdfText(cmds,230,719,`${pitchName||"Pitch"}${pitchCategory?` (${pitchCategory})`:""}`.slice(0,45),7.5,false,teamAText);
+        pdfText(cmds,420,734,"TOSS",6.5,true,teamBText);
+        const tossWords=String(tossText).split(/\s+/); let tossL1="", tossL2="";
+        tossWords.forEach(word=>{ const test=tossL1 ? tossL1+" "+word : word; if(test.length<=19 || !tossL1) tossL1=test; else if((tossL2 ? tossL2+" "+word : word).length<=21) tossL2=tossL2 ? tossL2+" "+word : word; });
+        if(!tossL2 && tossL1.length>21){ tossL2=tossL1.slice(21).trim(); tossL1=tossL1.slice(0,21).trim(); }
+        pdfText(cmds,420,719,tossL1,6.8,false,teamBText); if(tossL2) pdfText(cmds,420,709,tossL2,6.8,false,teamBText);
     };
     const resultBox=(cmds,y)=>{pdfRect(cmds,40,y-48,515,48,greenBg,[0.45,0.78,0.65],0.8);pdfText(cmds,54,y-18,matchLine,10,true,green);pdfText(cmds,54,y-36,`${teamAName}: ${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} ov)  |  ${teamBName}: ${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} ov)`,7.5,false,green);};
     const tableHeader=(cmds,y,label,total,color)=>{pdfText(cmds,40,y,label,10,true,color);pdfText(cmds,555-(String(total).length*5.3),y,String(total),9,true,text);pdfLine(cmds,40,y-9,555,y-9,line,1.2);};
@@ -1472,7 +1498,7 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified"), style: btn },
+                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified", teamA.color || "#1D6B47", teamB.color || "#B34A3C"), style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save / Print PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
