@@ -151,10 +151,18 @@ function classifyBowlerForPitch(economy, sr, avg, pitch) {
     }
     return { archetype: `${best.name} (pitch tier)`, o: best.o };
 }
+function hasSuppliedNumber(value) {
+    if (value === null || value === undefined)
+        return false;
+    if (typeof value === "string" && value.trim() === "")
+        return false;
+    const n = Number(value);
+    return Number.isFinite(n);
+}
 function getBattingProfile(p) {
     const suppliedAvg = Number(p.avg);
     const suppliedSR = Number(p.sr);
-    if (Number.isFinite(suppliedAvg) && Number.isFinite(suppliedSR))
+    if (hasSuppliedNumber(p.avg) && hasSuppliedNumber(p.sr))
         return { avg: suppliedAvg, sr: suppliedSR, auto: false, label: "Supplied" };
     const type = String(p.bowlingType || "").toLowerCase();
     const spin = type.includes("spin");
@@ -196,7 +204,7 @@ function getPreMatchVerification(xi, pitch) {
         const bat = pitchAdjustedProfile(p, pitch);
         const batClass = classifyBatsman(bat.sr, bat.avg);
         let bowl = null;
-        if (p.isBowler && Number.isFinite(Number(p.econ)) && Number.isFinite(Number(p.bowlSR)) && Number.isFinite(Number(p.bowlAvg))) {
+        if (p.isBowler && hasSuppliedNumber(p.econ) && hasSuppliedNumber(p.bowlSR) && hasSuppliedNumber(p.bowlAvg)) {
             const bp = pitchAdjustedBowlerProfile(p, pitch);
             bowl = { ...bp, class: classifyBowlerForPitch(bp.econ, bp.bowlSR, bp.bowlAvg, pitch) };
         }
@@ -634,8 +642,8 @@ function parsePlayingXIText(text) {
                 warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`);
                 return;
             }
-            if (!player.isBowler) {
-                warnings.push(`${teamName}: ${player.name} is assigned overs but has no bowling stats.`);
+            if (!player.isBowler || !hasSuppliedNumber(player.bowlSR) || !hasSuppliedNumber(player.econ)) {
+                warnings.push(`${teamName}: ${player.name} is assigned overs but has no complete bowling stats.`);
             }
             if (overs.length > 4)
                 warnings.push(`${teamName}: ${player.name} has more than 4 overs locked.`);
@@ -707,7 +715,7 @@ function mergeImportedData(data, parsed) {
     return { ...data, players, teams, importWarnings: warnings };
 }
 function PlayersTab({ data, update }) {
-    const [draft, setDraft] = useState({ name: "", avg: 30, sr: 130, hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
+    const [draft, setDraft] = useState({ name: "", avg: "", sr: "", hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
     const [bulkText, setBulkText] = useState("");
     const [importMessage, setImportMessage] = useState("");
     const [importWarnings, setImportWarnings] = useState([]);
@@ -727,8 +735,25 @@ function PlayersTab({ data, update }) {
     const addPlayer = () => {
         if (!draft.name.trim())
             return;
-        update({ ...data, players: [...data.players, { ...draft, hs: draft.hs === "" ? null : Number(draft.hs), bowlAvg: draft.bowlAvg === "" ? null : Number(draft.bowlAvg), bowlSR: draft.bowlSR === "" ? null : Number(draft.bowlSR), econ: draft.econ === "" ? null : Number(draft.econ), isSpin: /spin/i.test(draft.bowlingType || ""), id: nid("p") }] });
-        setDraft({ name: "", avg: 30, sr: 130, hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
+        const hasBat = hasSuppliedNumber(draft.avg) && hasSuppliedNumber(draft.sr);
+        const hasBowl = hasSuppliedNumber(draft.bowlAvg) && hasSuppliedNumber(draft.bowlSR) && hasSuppliedNumber(draft.econ);
+        if (!draft.isBowler && !hasBat)
+            return;
+        if (draft.isBowler && !hasBowl)
+            return;
+        const player = {
+            ...draft,
+            avg: hasBat ? Number(draft.avg) : null,
+            sr: hasBat ? Number(draft.sr) : null,
+            hs: draft.hs === "" ? null : Number(draft.hs),
+            bowlAvg: hasBowl ? Number(draft.bowlAvg) : null,
+            bowlSR: hasBowl ? Number(draft.bowlSR) : null,
+            econ: hasBowl ? Number(draft.econ) : null,
+            isSpin: /spin/i.test(draft.bowlingType || ""),
+            id: nid("p")
+        };
+        update({ ...data, players: [...data.players, player] });
+        setDraft({ name: "", avg: "", sr: "", hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
     };
     const removePlayer = (id) => update({ ...data, players: data.players.filter((p) => p.id !== id), teams: data.teams.map(t => ({ ...t, squad: t.squad.filter(pid => pid !== id), xiOrder: t.xiOrder.filter(pid => pid !== id) })) });
     return (React.createElement("div", { style: card },
@@ -767,15 +792,15 @@ function PlayersTab({ data, update }) {
         React.createElement("div", { style: { fontSize: 10.5, color: C.textFaint, marginBottom: 8 } }, "ADD SINGLE PLAYER + STATS"),
         React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.35fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.65fr 0.85fr auto", gap: 6, marginBottom: 16, alignItems: "center", padding: 13, background: C.panelAlt, borderRadius: 9, border: `1px solid ${C.lineSoft}` } },
             React.createElement("input", { placeholder: "Player name", style: input, value: draft.name, onChange: (e) => setDraft({ ...draft, name: e.target.value }) }),
-            React.createElement("input", { placeholder: "Bat Avg", type: "number", style: input, value: draft.avg, onChange: (e) => setDraft({ ...draft, avg: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Bat SR", type: "number", style: input, value: draft.sr, onChange: (e) => setDraft({ ...draft, sr: Number(e.target.value) }) }),
+            React.createElement("input", { placeholder: "Bat Avg", type: "number", style: input, value: draft.avg, onChange: (e) => setDraft({ ...draft, avg: e.target.value }) }),
+            React.createElement("input", { placeholder: "Bat SR", type: "number", style: input, value: draft.sr, onChange: (e) => setDraft({ ...draft, sr: e.target.value }) }),
             React.createElement("input", { placeholder: "HS (optional)", type: "number", style: input, value: draft.hs, onChange: (e) => setDraft({ ...draft, hs: e.target.value }) }),
             React.createElement("label", { style: { fontSize: 10.5, color: C.textDim, display: "flex", gap: 4, alignItems: "center" } },
                 React.createElement("input", { type: "checkbox", checked: draft.isBowler, onChange: (e) => setDraft({ ...draft, isBowler: e.target.checked }) }),
                 " Bowler"),
-            React.createElement("input", { placeholder: "Bowl Avg", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlAvg, onChange: (e) => setDraft({ ...draft, bowlAvg: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Bowl SR", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlSR, onChange: (e) => setDraft({ ...draft, bowlSR: Number(e.target.value) }) }),
-            React.createElement("input", { placeholder: "Econ", type: "number", step: "0.1", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.econ, onChange: (e) => setDraft({ ...draft, econ: Number(e.target.value) }) }),
+            React.createElement("input", { placeholder: "Bowl Avg", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlAvg, onChange: (e) => setDraft({ ...draft, bowlAvg: e.target.value }) }),
+            React.createElement("input", { placeholder: "Bowl SR", type: "number", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlSR, onChange: (e) => setDraft({ ...draft, bowlSR: e.target.value }) }),
+            React.createElement("input", { placeholder: "Econ", type: "number", step: "0.1", disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.econ, onChange: (e) => setDraft({ ...draft, econ: e.target.value }) }),
             React.createElement("select", { disabled: !draft.isBowler, style: { ...input, opacity: draft.isBowler ? 1 : 0.4 }, value: draft.bowlingType, onChange: (e) => setDraft({ ...draft, bowlingType: e.target.value }) },
                 React.createElement("option", { value: "" }, "Bowling type"),
                 React.createElement("option", null, "Fast"),
