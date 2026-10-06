@@ -2,8 +2,11 @@
 @media print {
   @page { size: A4; margin: 10mm; }
   body.printing-scorecard { background: #fff !important; }
-  body.printing-scorecard > *:not(#scorecard-export-overlay) { display: none !important; }
-  body.printing-scorecard #scorecard-export-overlay { display: block !important; position: static !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  body.printing-scorecard .app-shell { background: #fff !important; padding: 0 !important; color: #111 !important; }
+  body.printing-scorecard .app-shell > div > * { visibility: hidden !important; }
+  body.printing-scorecard .app-shell .print-target,
+  body.printing-scorecard .app-shell .print-target * { visibility: visible !important; }
+  body.printing-scorecard .app-shell .print-target { position: absolute; left: 0; top: 0; width: 100%; }
   body.printing-scorecard .no-print { display: none !important; }
   body.printing-scorecard .card { box-shadow: none !important; break-inside: avoid; }
   body.printing-scorecard .print-target { font-family: Arial, sans-serif !important; color: #111 !important; }
@@ -18,53 +21,7 @@
   body.printing-scorecard .scorecard-export-overlay { display: block !important; }
 }
 
-.scorecard-export-overlay{display:none}.sc-header{background:linear-gradient(135deg,#0D2A20,#184633);color:#fff;border-radius:18px;padding:22px;text-align:center;border:1px solid #3E8562}.sc-brand{font-size:10px;letter-spacing:2px;color:#B8D3C2;font-weight:800}.sc-title{font-size:27px;font-weight:800;margin:8px 0}.sc-title span{color:#8FB3A0;font-size:16px}.sc-result{font-size:15px;color:#7FE0A8;font-weight:800}.sc-meta{margin-top:6px;color:#B8D3C2;font-size:10px}.sc-potm{margin-top:10px;color:#F0C75E;font-size:11px;font-weight:800}.sc-resimulated{text-align:center;margin:10px 0;padding:7px;border-radius:8px;background:#FBE8E5;color:#A43E32;font-weight:800;font-size:10px}.sc-section{background:#fff;border:1px solid #CBD8D1;border-radius:12px;padding:14px;margin:14px 0}.sc-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.sc-kicker{font-size:9px;letter-spacing:1.5px;color:#5A7466;font-weight:800}.sc-section h2{font-size:19px;color:#143B2B;margin:4px 0 0}.sc-total{font-size:23px;font-weight:800;color:#143B2B}.sc-total span{font-size:10px;color:#5A7466}.sc-section h3{font-size:11px;color:#1D6B47;margin:13px 0 6px}.sc-section table{width:100%;border-collapse:collapse;font-size:8.5pt}.sc-section th{background:#173629;color:#fff;text-align:left;font-size:7.5pt;padding:5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sc-section td{padding:5px;border-bottom:1px solid #DDE6E0}.sc-section .player{font-weight:700}.sc-section .tier{font-weight:800;color:#143B2B;background:#F0C75E;border-radius:8px;padding:2px 5px}.sc-small{color:#5A7466;font-size:8.5pt;line-height:1.45}.page-break-after{break-after:page;page-break-after:always}.tier-page{break-before:page;page-break-before:always}
-@media print {
-  @page { size: A4 portrait; margin: 8mm; }
-  body.printing-scorecard { background:#fff !important; }
-  body.printing-scorecard #scorecard-export-overlay { display:block !important; }
-  body.printing-scorecard .scorecard-print-root { width:100% !important; }
-  body.printing-scorecard .sc-page { width:100% !important; min-height:277mm !important; max-height:277mm !important; overflow:hidden !important; page-break-after:always !important; break-after:page !important; }
-  body.printing-scorecard .sc-page:last-child { page-break-after:auto !important; break-after:auto !important; }
-  body.printing-scorecard .sc-tier-page { padding:0 !important; }
-  body.printing-scorecard .sc-match-page { padding:0 !important; }
-  body.printing-scorecard .sc-print-header { margin-bottom:6mm !important; }
-  body.printing-scorecard .sc-box { break-inside:avoid !important; page-break-inside:avoid !important; }
-  body.printing-scorecard table { page-break-inside:avoid !important; }
-}
-.scorecard-print-root{font-family:Arial,sans-serif;color:#17221d;background:#fff}
-.sc-page{padding:0}
-.sc-tier-page h1{font-size:22px;color:#143b2b;margin:4px 0 6px}
-.sc-note{font-size:9px;color:#5a7466;margin:0 0 10px;line-height:1.4}
-.sc-print-header{border:2px solid #173629;border-radius:10px;padding:12px 16px;background:#0f3024;color:#fff;text-align:center}
-.sc-brand{font-size:8px;letter-spacing:2px;color:#b8d3c2;font-weight:800}
-.sc-title{font-size:22px;font-weight:800;margin:4px 0}
-.sc-title span{color:#9ab4a6;font-size:12px}
-.sc-result{font-size:12px;color:#7fe0a8;font-weight:800}
-.sc-meta{font-size:8px;color:#b8d3c2;margin-top:3px}
-.sc-potm{font-size:8px;color:#f0c75e;font-weight:800;margin-top:5px}
-.sc-summary{display:flex;gap:8px;margin:8px 0}
-.sc-summary>div{flex:1;border:1px solid #b7c8be;border-radius:7px;padding:6px;font-size:9px}
-.sc-match-meta{font-size:8px;color:#5a7466;margin:5px 0 8px}
-.sc-innings-head{display:flex;justify-content:space-between;align-items:end;border-bottom:2px solid #173629;padding-bottom:5px;margin-bottom:7px}
-.sc-kicker{font-size:8px;letter-spacing:1.5px;color:#5a7466;font-weight:800}
-.sc-innings-head h2{font-size:15px;color:#143b2b;margin:2px 0 0}
-.sc-score{font-size:20px;font-weight:800;color:#143b2b;text-align:right}
-.sc-score span{display:block;font-size:8px;color:#5a7466;font-weight:400}
-.sc-box{border:1px solid #cbd8d1;border-radius:7px;padding:7px 8px;margin:7px 0;background:#fff}
-.sc-box h3{font-size:9px;color:#1d6b47;margin:0 0 4px}
-.sc-box table{width:100%;border-collapse:collapse;font-size:7.2pt}
-.sc-box th{background:#173629;color:#fff;text-align:left;font-size:6.7pt;padding:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.sc-box td{padding:3.5px 4px;border-bottom:1px solid #dde6e0;vertical-align:top}
-.sc-box .player{font-weight:700}
-.sc-tier-page .sc-box table{font-size:6.7pt}
-.sc-tier-page .sc-box th{font-size:6.1pt}
-.sc-tier-page .sc-box td{padding:3px 3px}
-.tier{font-weight:800;color:#143b2b;background:#f0c75e;border-radius:6px;padding:1px 4px;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.sc-mini{font-size:7.5pt;color:#5a7466;line-height:1.45}
-.sc-mini>div+div{margin-top:3px}
-.sc-final-box{border:2px solid #173629;border-radius:8px;padding:8px;margin-top:8px;font-size:9px;color:#143b2b}
-</style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
+.scorecard-export-overlay{display:none} .sc-page{break-after:page;page-break-after:always;min-height:250mm;box-sizing:border-box}.sc-page:last-child{break-after:auto;page-break-after:auto}.tier-page-first{break-before:auto;page-break-before:auto}.sc-page .sc-header{margin-bottom:12px}.sc-page .sc-section{break-inside:auto}.sc-header{background:linear-gradient(135deg,#0D2A20,#184633);color:#fff;border-radius:18px;padding:22px;text-align:center;border:1px solid #3E8562}.sc-brand{font-size:10px;letter-spacing:2px;color:#B8D3C2;font-weight:800}.sc-title{font-size:27px;font-weight:800;margin:8px 0}.sc-title span{color:#8FB3A0;font-size:16px}.sc-result{font-size:15px;color:#7FE0A8;font-weight:800}.sc-meta{margin-top:6px;color:#B8D3C2;font-size:10px}.sc-potm{margin-top:10px;color:#F0C75E;font-size:11px;font-weight:800}.sc-resimulated{text-align:center;margin:10px 0;padding:7px;border-radius:8px;background:#FBE8E5;color:#A43E32;font-weight:800;font-size:10px}.sc-section{background:#fff;border:1px solid #CBD8D1;border-radius:12px;padding:14px;margin:14px 0}.sc-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.sc-kicker{font-size:9px;letter-spacing:1.5px;color:#5A7466;font-weight:800}.sc-section h2{font-size:19px;color:#143B2B;margin:4px 0 0}.sc-total{font-size:23px;font-weight:800;color:#143B2B}.sc-total span{font-size:10px;color:#5A7466}.sc-section h3{font-size:11px;color:#1D6B47;margin:13px 0 6px}.sc-section table{width:100%;border-collapse:collapse;font-size:8.5pt}.sc-section th{background:#173629;color:#fff;text-align:left;font-size:7.5pt;padding:5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sc-section td{padding:5px;border-bottom:1px solid #DDE6E0}.sc-section .player{font-weight:700}.sc-section .tier{font-weight:800;color:#143B2B;background:#F0C75E;border-radius:8px;padding:2px 5px}.sc-small{color:#5A7466;font-size:8.5pt;line-height:1.45}.page-break-after{break-after:page;page-break-after:always}.tier-page{break-before:page;page-break-before:always}</style></head><body><div id="startup" style="font-family:Arial,sans-serif;background:#081410;color:#93AD9F;min-height:100vh;padding:40px;text-align:center">Loading T20 League Simulator…</div><div id="root"></div><script>window.addEventListener('error',function(e){var s=document.getElementById('startup');if(s){s.innerHTML='<div style="max-width:700px;margin:auto"><h2 style="color:#E0B85A">Simulator could not start</h2><p>'+String(e.message||e.error||'Unknown browser error').replace(/[<>]/g,'')+'</p><p>The local simulator failed to load. If this message appears again, send me a screenshot of it.</p></div>';} });</script><script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script><script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script><script>const { useState, useEffect, useMemo, useCallback } = React;
 const Icon = ({ children, ...p }) => React.createElement("span", { ...p, style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1em', lineHeight: 1, ...(p.style || {}) } }, children || '•');
 const Users = () => React.createElement(Icon, null, "\uD83D\uDC65"), MapPin = () => React.createElement(Icon, null, "\uD83D\uDCCD"), Shield = () => React.createElement(Icon, null, "\uD83D\uDEE1\uFE0F"), PlayCircle = () => React.createElement(Icon, null, "\u25B6\uFE0F"), Trophy = () => React.createElement(Icon, null, "\uD83C\uDFC6"), Clock = () => React.createElement(Icon, null, "\u25F7"), RotateCcw = () => React.createElement(Icon, null, "\u21BB"), CheckCircle2 = () => React.createElement(Icon, null, "\u2713"), Loader2 = () => React.createElement(Icon, null, "\u27F3"), ChevronRight = () => React.createElement(Icon, null, "\u203A"), X = () => React.createElement(Icon, null, "\u00D7"), Plus = () => React.createElement(Icon, null, "+"), Award = () => React.createElement(Icon, null, "\uD83C\uDFC5"), Zap = () => React.createElement(Icon, null, "\u26A1"), Home = () => React.createElement(Icon, null, "\u2302"), Target = () => React.createElement(Icon, null, "\uD83C\uDFAF"), Flame = () => React.createElement(Icon, null, "\uD83D\uDD25"), FileText = () => React.createElement(Icon, null, "\uD83D\uDCC4"), ImageIcon = () => React.createElement(Icon, null, "\uD83D\uDDBC\uFE0F");
 // ============================================================================
@@ -1075,120 +1032,87 @@ function downloadBlob(blob, filename) {
 }
 function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitchCategory) {
     const verification = [...(result.verification?.teamA || []), ...(result.verification?.teamB || [])];
-    const byId = new Map(verification.map(v => [v.id, v]));
-    const esc = escapeHtml;
-    const tierForBat = (b) => byId.get(b.id)?.batTier || "—";
-    const tierForBowl = (b) => {
-        const v = byId.get(b.id);
-        return v?.bowl?.class?.archetype || v?.batTier || "—";
-    };
-    const oversText = (balls) => `${Math.floor((balls || 0) / 6)}.${(balls || 0) % 6}`;
-    const rrText = (inn) => inn.deliveries?.length ? (inn.totalRuns / (inn.deliveries.length / 6)).toFixed(2) : "0.00";
 
-    // The current engine records a wicket + credited bowler, but it does not
-    // simulate a separate caught/lbw/stumped/run-out event. Never invent one.
+    // Tiers belong ONLY on page 1 (pre-match verification).
+    // Innings scorecards deliberately contain no tier columns.
     const dismissal = (b, innings) => {
         if (!b.out) return b.balls > 0 ? "not out" : "did not bat";
-        const d = (innings.deliveries || []).find(x => x.isWicket && x.batter === b.name);
-        return d ? `out · b ${esc(d.bowler)}` : "out";
+        const d = innings.deliveries.find(x => x.isWicket && x.batter === b.name);
+        return d ? `out — ${escapeHtml(d.bowler)}` : "out";
     };
+
+    const inningsPage = (x, title) => `<section class="sc-page">
+        <header class="sc-header">
+            <div class="sc-brand">T20 CRICKET LEAGUE</div>
+            <div class="sc-title">${escapeHtml(teamAName)} <span>vs</span> ${escapeHtml(teamBName)}</div>
+            <div class="sc-result">${escapeHtml(result.margin)}</div>
+            ${pitchName ? `<div class="sc-meta">Pitch · ${escapeHtml(pitchName)}${pitchCategory ? ` · ${escapeHtml(pitchCategory)}` : ""}</div>` : ""}
+        </header>
+        <section class="sc-section">
+            <div class="sc-section-head">
+                <div><div class="sc-kicker">INNINGS</div><h2>${escapeHtml(title)}</h2></div>
+                <div class="sc-total">${x.totalRuns}/${x.totalWkts}<span> ${x.deliveries.length ? (x.deliveries.length / 6).toFixed(1) : "0.0"} ov</span></div>
+            </div>
+            <h3>Batting</h3>
+            <table>
+                <thead><tr><th>Batter</th><th>Dismissal</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>
+                <tbody>
+                    ${x.battingCard.map(b => `<tr>
+                        <td class="player">${escapeHtml(b.name)}${!b.out && b.balls > 0 ? " *" : ""}</td>
+                        <td>${dismissal(b, x)}</td>
+                        <td>${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td>
+                        <td>${b.balls ? ((b.runs / b.balls) * 100).toFixed(2) : "-"}</td>
+                    </tr>`).join("")}
+                </tbody>
+            </table>
+            <h3>Bowling</h3>
+            <table>
+                <thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead>
+                <tbody>
+                    ${x.bowlingCard.map(b => `<tr>
+                        <td class="player">${escapeHtml(b.name)}</td>
+                        <td>${Math.floor(b.balls / 6)}.${b.balls % 6}</td>
+                        <td>${b.runs}</td><td>${b.wkts}</td>
+                        <td>${b.balls ? (b.runs / (b.balls / 6)).toFixed(2) : "-"}</td>
+                    </tr>`).join("")}
+                </tbody>
+            </table>
+            ${x.fallOfWickets?.length ? `<h3>Fall of Wickets</h3><p class="sc-small">${x.fallOfWickets.map(f => `${f.wicket}-${f.score} ${escapeHtml(f.batter)} (${f.over})`).join(" &nbsp;•&nbsp; ")}</p>` : ""}
+            ${x.partnerships?.length ? `<h3>Partnerships</h3><p class="sc-small">${x.partnerships.map((p,i) => `${i + 1}: ${p.runs} runs (${p.balls} balls)`).join(" &nbsp;•&nbsp; ")}</p>` : ""}
+        </section>
+    </section>`;
 
     const tierRows = verification.map(v => {
         const tier = v.bowl?.class?.archetype || v.batTier || "—";
-        const base = v.batBase?.auto
-            ? "AUTO · no batting stats supplied"
-            : `Bat Avg ${Number(v.batBase.avg).toFixed(2)} / SR ${Number(v.batBase.sr).toFixed(2)}`;
-        const adjusted = v.batBase?.auto
-            ? "AUTO tailender profile used by engine"
-            : `Bat Avg ${Number(v.batAdjusted.avg).toFixed(2)} / SR ${Number(v.batAdjusted.sr).toFixed(2)}`;
-        const bowling = v.bowl
-            ? `Bowl Avg ${Number(v.bowl.bowlAvg).toFixed(2)} / SR ${Number(v.bowl.bowlSR).toFixed(2)} / Econ ${Number(v.bowl.econ).toFixed(2)}`
-            : "—";
-        const pitchAdj = v.bowl
-            ? `${v.bowl.effectiveness > 1 ? "+" : v.bowl.effectiveness < 1 ? "-" : "0"}${Math.abs((v.bowl.effectiveness - 1) * 100).toFixed(0)}% bowling effectiveness`
-            : `Bat Avg ${v.batModifier.avg >= 0 ? "+" : ""}${v.batModifier.avg.toFixed(0)}% · SR ${v.batModifier.sr >= 0 ? "+" : ""}${v.batModifier.sr.toFixed(0)}%`;
+        const base = v.bowl
+            ? `Econ ${v.bowl.econ.toFixed(2)} / SR ${v.bowl.bowlSR.toFixed(1)} / Avg ${v.bowl.bowlAvg.toFixed(1)}`
+            : `Avg ${v.batBase.avg} / SR ${v.batBase.sr}`;
+        const adjusted = v.bowl
+            ? `Econ ${v.bowl.econ.toFixed(2)} / SR ${v.bowl.bowlSR.toFixed(1)} / Avg ${v.bowl.bowlAvg.toFixed(1)}`
+            : `Avg ${v.batAdjusted.avg.toFixed(2)} / SR ${v.batAdjusted.sr.toFixed(2)}`;
         return `<tr>
-            <td class="player">${esc(v.name)}</td>
-            <td>${esc(v.role)}</td>
+            <td class="player">${escapeHtml(v.name)}</td>
+            <td>${escapeHtml(v.role)}</td>
             <td>${base}</td>
             <td>${adjusted}</td>
-            <td>${bowling}</td>
-            <td>${pitchAdj}</td>
-            <td><span class="tier">${esc(tier)}</span></td>
+            <td><span class="tier">${escapeHtml(tier)}</span></td>
         </tr>`;
     }).join("");
 
-    const inningsHTML = (x, title) => `
-      <section class="sc-page sc-innings-page">
-        <div class="sc-innings-head">
-          <div><div class="sc-kicker">INNINGS</div><h2>${esc(title)}</h2></div>
-          <div class="sc-score">${x.totalRuns}/${x.totalWkts}<span>${oversText(x.deliveries?.length || 0)} Overs · RR ${rrText(x)}</span></div>
-        </div>
-        <div class="sc-box">
-          <h3>Batting</h3>
-          <table>
-            <thead><tr><th>Batter</th><th>Dismissal</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th><th>Tier</th></tr></thead>
-            <tbody>${x.battingCard.map(b => `<tr>
-              <td class="player">${esc(b.name)}${!b.out && b.balls > 0 ? " *" : ""}</td>
-              <td>${dismissal(b,x)}</td>
-              <td>${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td>
-              <td>${b.balls ? ((b.runs / b.balls) * 100).toFixed(2) : "-"}</td>
-              <td><span class="tier">${esc(tierForBat(b))}</span></td>
-            </tr>`).join("")}</tbody>
-          </table>
-        </div>
-        <div class="sc-box">
-          <h3>Bowling</h3>
-          <table>
-            <thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th><th>Tier</th></tr></thead>
-            <tbody>${x.bowlingCard.map(b => `<tr>
-              <td class="player">${esc(b.name)}</td>
-              <td>${oversText(b.balls)}</td><td>${b.runs}</td><td>${b.wkts}</td>
-              <td>${b.balls ? (b.runs / (b.balls / 6)).toFixed(2) : "-"}</td>
-              <td><span class="tier">${esc(tierForBowl(b))}</span></td>
-            </tr>`).join("")}</tbody>
-          </table>
-        </div>
-        <div class="sc-box sc-mini">
-          <div><b>Fall of Wickets:</b> ${x.fallOfWickets?.length ? x.fallOfWickets.map(f => `${f.wicket}-${f.score} ${esc(f.batter)} (${f.over})`).join(" · ") : "—"}</div>
-          <div><b>Partnerships:</b> ${x.partnerships?.length ? x.partnerships.map((p,i) => `${i+1}: ${p.runs} (${p.balls}b)`).join(" · ") : "—"}</div>
-        </div>
-      </section>`;
-
-    const header = `
-      <div class="sc-print-header">
-        <div class="sc-brand">T20 CRICKET LEAGUE SIMULATOR</div>
-        <div class="sc-title">${esc(teamAName)} <span>vs</span> ${esc(teamBName)}</div>
-        <div class="sc-result">${esc(result.margin || "Match result")}</div>
-        ${pitchName ? `<div class="sc-meta">Pitch · ${esc(pitchName)}${pitchCategory ? ` · ${esc(pitchCategory)}` : ""}</div>` : ""}
-        ${result.playerOfMatch ? `<div class="sc-potm">PLAYER OF THE MATCH · ${esc(result.playerOfMatch.name)}</div>` : ""}
-      </div>`;
-
-    return `<div class="scorecard-print-root">
-      <section class="sc-page sc-tier-page">
-        <div class="sc-kicker">PAGE 1 · PRE-MATCH ANALYSIS</div>
-        <h1>Player Tier Analysis</h1>
-        <p class="sc-note">Uploaded statistics are shown separately from the game's pitch-adjusted values. Highest Score (HS) is display-only and is not used by the simulation.</p>
-        <div class="sc-box">
-          <table>
-            <thead><tr><th>Player</th><th>Role</th><th>Uploaded Batting</th><th>Game-Adjusted Batting</th><th>Uploaded Bowling</th><th>Pitch / Game Adjustment</th><th>Assigned Tier</th></tr></thead>
-            <tbody>${tierRows}</tbody>
-          </table>
-        </div>
-      </section>
-      <section class="sc-page sc-match-page">
-        ${header}
-        <div class="sc-summary"><div><b>${esc(teamAName)}</b> · ${result.inn1.totalRuns}/${result.inn1.totalWkts}</div><div><b>${esc(teamBName)}</b> · ${result.inn2.totalRuns}/${result.inn2.totalWkts}</div></div>
-        <div class="sc-match-meta">Venue: Not recorded by the current simulator · Toss: Not recorded by the current simulator</div>
-        ${inningsHTML(result.inn1, teamAName + " innings")}
-      </section>
-      <section class="sc-page sc-match-page">
-        ${inningsHTML(result.inn2, teamBName + " innings")}
-        <div class="sc-final-box">
-          <b>Match Result:</b> ${esc(result.margin || "Match tied")}
-          ${result.playerOfMatch ? `<br><b>Player of the Match:</b> ${esc(result.playerOfMatch.name)}` : ""}
-        </div>
-      </section>
+    return `<div class="export-card">
+        <section class="sc-page">
+            <section class="sc-section tier-page-first">
+                <div class="sc-kicker">PAGE 1 · PRE-MATCH VERIFICATION</div>
+                <h2>Player Tier Verification</h2>
+                <p class="sc-small">Uploaded stats and the game's pitch-adjusted stats with the simulator's assigned tier.</p>
+                <table>
+                    <thead><tr><th>Player</th><th>Role</th><th>Uploaded Stats</th><th>Game-Adjusted Stats</th><th>Assigned Tier</th></tr></thead>
+                    <tbody>${tierRows}</tbody>
+                </table>
+            </section>
+        </section>
+        ${inningsPage(result.inn1, teamAName + " innings")}
+        ${inningsPage(result.inn2, teamBName + " innings")}
     </div>`;
 }
 function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
@@ -1198,18 +1122,13 @@ function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCatego
     const overlay = document.createElement("div");
     overlay.id = "scorecard-export-overlay";
     overlay.className = "scorecard-export-overlay";
-    overlay.innerHTML = buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitchCategory)
-      + (resimulated ? `<div class="sc-resimulated">RESIMULATED MATCH · latest result counts</div>` : "");
+    overlay.innerHTML = buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitchCategory) + (resimulated ? `<div class="sc-resimulated">RESIMULATED MATCH · latest result counts</div>` : "");
     document.body.appendChild(overlay);
     document.body.classList.add("printing-scorecard");
-    const cleanup = () => {
-        document.body.classList.remove("printing-scorecard");
-        const el = document.getElementById("scorecard-export-overlay");
-        if (el) el.remove();
-        window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    window.setTimeout(() => window.print(), 100);
+    window.setTimeout(() => {
+        window.print();
+        window.setTimeout(() => { document.body.classList.remove("printing-scorecard"); overlay.remove(); }, 700);
+    }, 80);
 }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
