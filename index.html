@@ -208,7 +208,7 @@ function resolveDelivery(v, rng) {
     let acc = 0;
     acc += v.wicket;
     if (x < acc)
-        return { outcome: "W", runs: 0, isWicket: true };
+        return { outcome: "W", runs: 0, isWicket: true, dismissalType: "bowled" };
     acc += v.dot;
     if (x < acc)
         return { outcome: "0", runs: 0, isWicket: false };
@@ -273,7 +273,7 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
         for (let ball = 1; ball <= 6; ball++) {
             if (totalWkts >= 10)
                 break outer;
-            if (target !== undefined && totalRuns > target)
+            if (target !== undefined && totalRuns >= target)
                 break outer;
             const striker = battingXI[strikerIdx];
             const res = simulateBall(striker, bowler, pitch, over, rng);
@@ -286,7 +286,7 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
                 totalWkts += 1;
                 bl.wkts += 1;
                 currentPartnership.wicket = totalWkts;
-                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: `${over}.${ball}` });
+                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: `${over}.${ball}`, dismissalType: res.dismissalType || "bowled", bowler: bowler.name });
                 partnerships.push({ ...currentPartnership, wicket: totalWkts });
                 currentPartnership = { runs: 0, balls: 0, wicket: 0 };
                 deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, ...res });
@@ -321,8 +321,46 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
     }
     if (currentPartnership.balls > 0)
         partnerships.push({ ...currentPartnership, wicket: null });
-    return { deliveries, battingCard, bowlingCard: Object.values(bowlingMap), totalRuns, totalWkts, fallOfWickets, partnerships };
+    const bowlingCard = Object.values(bowlingMap).map((b) => {
+        const overs = {};
+        deliveries.filter((d) => d.bowler === b.name).forEach((d) => {
+            const key = d.over;
+            if (!overs[key]) overs[key] = { balls: 0, runs: 0 };
+            overs[key].balls += 1;
+            overs[key].runs += Number(d.runs) || 0;
+        });
+        const maidens = Object.values(overs).filter((o) => o.balls === 6 && o.runs === 0).length;
+        return { ...b, maidens };
+    });
+    return { deliveries, battingCard, bowlingCard, totalRuns, totalWkts, fallOfWickets, partnerships, extras: 0 };
 }
+function simulateSuperOver(battingXI, bowler, pitch, rng, target) {
+    const deliveries = [];
+    const battingCard = battingXI.slice(0, 3).map((p) => ({ id: p.id, name: p.name, runs: 0, balls: 0, fours: 0, sixes: 0, out: false }));
+    let strikerIdx = 0, nonStrikerIdx = 1, nextIn = 2, totalRuns = 0, totalWkts = 0;
+    for (let ball = 1; ball <= 6; ball++) {
+        if (totalWkts >= 2 || (target !== undefined && totalRuns >= target)) break;
+        const striker = battingCard[strikerIdx];
+        const source = battingXI.find((p) => p.id === striker.id);
+        const res = simulateBall(source, bowler, pitch, 0, rng);
+        striker.balls += 1;
+        if (res.isWicket) {
+            striker.out = true;
+            totalWkts += 1;
+            deliveries.push({ over: 1, ball, batter: striker.name, bowler: bowler.name, ...res });
+            if (nextIn < battingCard.length) { strikerIdx = nextIn; nextIn += 1; }
+            continue;
+        }
+        striker.runs += res.runs;
+        totalRuns += res.runs;
+        if (res.runs === 4) striker.fours += 1;
+        if (res.runs === 6) striker.sixes += 1;
+        deliveries.push({ over: 1, ball, batter: striker.name, bowler: bowler.name, ...res });
+        if (res.runs === 1 || res.runs === 3) [strikerIdx, nonStrikerIdx] = [nonStrikerIdx, strikerIdx];
+    }
+    return { totalRuns, totalWkts, deliveries, battingCard, bowler: bowler.name };
+}
+
 function calculatePlayerOfMatch(inn1, inn2) {
     const candidates = [];
     [inn1, inn2].forEach((inn) => {
@@ -332,6 +370,22 @@ function calculatePlayerOfMatch(inn1, inn2) {
             candidates.push({ id: b.id, name: b.name, impact: b.wkts * 20 - b.runs * 0.35 }); });
     });
     return candidates.sort((a, b) => b.impact - a.impact)[0] || null;
+}
+function simulateToss(teamA, teamB, rng) {
+    const call = rng() < 0.5 ? "Heads" : "Tails";
+    const coin = rng() < 0.5 ? "Heads" : "Tails";
+    const tossWinner = coin === call ? teamA : teamB;
+    const tossLoser = tossWinner.id === teamA.id ? teamB : teamA;
+    // The toss winner makes the cricket-standard bat/bowl decision.
+    // The choice is simulated independently so it remains a true pre-match toss event.
+    const decision = rng() < 0.5 ? "bat" : "bowl";
+    const firstBattingTeam = decision === "bat" ? tossWinner : tossLoser;
+    const secondBattingTeam = firstBattingTeam.id === teamA.id ? teamB : teamA;
+    return {
+        call, coin, winnerId: tossWinner.id, winnerName: tossWinner.name, loserId: tossLoser.id,
+        decision, firstBattingTeamId: firstBattingTeam.id, secondBattingTeamId: secondBattingTeam.id,
+        summary: `${tossWinner.name} won the toss and elected to ${decision}.`
+    };
 }
 function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     const xiA = teamA.xiOrder.map((id) => playerLookup[id]).filter(Boolean);
@@ -346,20 +400,49 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     if (!checkB.ok)
         throw new Error(`${teamB.name}: ${checkB.reason}`);
     const rng = Math.random;
-    const inn1 = simulateInnings(xiA, rotB, playerLookup, pitch, rng);
-    const inn2 = simulateInnings(xiB, rotA, playerLookup, pitch, rng, inn1.totalRuns);
+    const toss = simulateToss(teamA, teamB, rng);
+    const firstBattingTeam = toss.firstBattingTeamId === teamA.id ? teamA : teamB;
+    const secondBattingTeam = toss.secondBattingTeamId === teamA.id ? teamA : teamB;
+    const firstXI = firstBattingTeam.id === teamA.id ? xiA : xiB;
+    const secondXI = secondBattingTeam.id === teamA.id ? xiA : xiB;
+    const firstRotation = firstBattingTeam.id === teamA.id ? rotA : rotB;
+    const secondRotation = secondBattingTeam.id === teamA.id ? rotA : rotB;
+    // The team batting first faces the other team's bowling rotation.
+    const firstBowlingRotation = secondBattingTeam.id === teamA.id ? rotA : rotB;
+    const secondBowlingRotation = firstBattingTeam.id === teamA.id ? rotA : rotB;
+    const inn1 = simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng);
+    const inn2 = simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns);
     let winnerId = null, margin = "";
     if (inn2.totalRuns > inn1.totalRuns) {
-        winnerId = teamB.id;
+        winnerId = secondBattingTeam.id;
         margin = `won by ${10 - inn2.totalWkts} wicket(s)`;
     }
     else if (inn1.totalRuns > inn2.totalRuns) {
-        winnerId = teamA.id;
+        winnerId = firstBattingTeam.id;
         margin = `won by ${inn1.totalRuns - inn2.totalRuns} run(s)`;
     }
-    else
-        margin = "Match tied";
-    return { inn1, inn2, winnerId, margin, rotationAudit: "AUDIT PASSED: Batting positions and rotation locks adhered to with 0% deviation.", playerOfMatch: calculatePlayerOfMatch(inn1, inn2), verification: { teamA: getPreMatchVerification(xiA, pitch), teamB: getPreMatchVerification(xiB, pitch) } };
+    let superOver = null;
+    if (inn1.totalRuns === inn2.totalRuns) {
+        const firstBowlingTeam = secondBattingTeam;
+        const secondBowlingTeam = firstBattingTeam;
+        const firstBowlingRotation = firstBowlingTeam.id === teamA.id ? rotA : rotB;
+        const secondBowlingRotation = secondBowlingTeam.id === teamA.id ? rotA : rotB;
+        const bowlerFirst = playerLookup[firstBowlingRotation[1]];
+        const bowlerSecond = playerLookup[secondBowlingRotation[1]];
+        if (!bowlerFirst || !bowlerSecond) throw new Error("A valid first-over bowler is required for the Super Over.");
+        let attempts = 0;
+        do {
+            const so1 = simulateSuperOver(firstXI, bowlerFirst, pitch, rng);
+            const so2 = simulateSuperOver(secondXI, bowlerSecond, pitch, rng, so1.totalRuns);
+            superOver = { inn1: so1, inn2: so2, inn1TeamId: firstBattingTeam.id, inn2TeamId: secondBattingTeam.id };
+            attempts += 1;
+            if (so1.totalRuns !== so2.totalRuns) break;
+        } while (attempts < 20);
+        if (superOver.inn1.totalRuns > superOver.inn2.totalRuns) { winnerId = firstBattingTeam.id; margin = "won by Super Over"; }
+        else if (superOver.inn2.totalRuns > superOver.inn1.totalRuns) { winnerId = secondBattingTeam.id; margin = "won by Super Over"; }
+        else throw new Error("Super Over remained tied after 20 simulated attempts; please resimulate the match.");
+    }
+    return { toss, inn1, inn2, inn1TeamId: firstBattingTeam.id, inn2TeamId: secondBattingTeam.id, superOver, winnerId, margin, rotationAudit: "AUDIT PASSED: Batting positions and rotation locks adhered to with 0% deviation.", playerOfMatch: calculatePlayerOfMatch(inn1, inn2), verification: { teamA: getPreMatchVerification(xiA, pitch), teamB: getPreMatchVerification(xiB, pitch) } };
 }
 // ============================================================================
 // PITCH ARCHETYPES
@@ -593,7 +676,7 @@ function parsePlayingXIText(text) {
                 current.bowlingType = bt[1].trim();
                 return;
             }
-            const bowl = line.match(/^\|?\s*Bowl\s*(?:Avg\s*[-:]\s*([\d.]+)\s*\|\s*)?(?:SR\s*[-:]\s*([\d.]+))\s*\|\s*Econ\s*[-:]\s*([\d.]+)/i);
+            const bowl = line.match(/^\|?\s*Bowl\s*Avg\s*[-:]\s*([\d.]+)?\s*\|\s*(?:Bowl\s*)?SR\s*[-:]\s*([\d.]+)\s*\|\s*Econ\s*[-:]\s*([\d.]+)/i);
             if (bowl) {
                 current.bowlAvg = bowl[1] ? Number(bowl[1]) : null;
                 current.bowlSR = bowl[2] ? Number(bowl[2]) : null;
@@ -1046,6 +1129,7 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
             <div class="sc-brand">T20 CRICKET LEAGUE</div>
             <div class="sc-title">${escapeHtml(teamAName)} <span>vs</span> ${escapeHtml(teamBName)}</div>
             <div class="sc-result">${escapeHtml(result.margin)}</div>
+            ${result.toss ? `<div class="sc-meta">Toss · ${escapeHtml(result.toss.summary)}</div>` : ""}
             ${pitchName ? `<div class="sc-meta">Pitch · ${escapeHtml(pitchName)}${pitchCategory ? ` · ${escapeHtml(pitchCategory)}` : ""}</div>` : ""}
         </header>
         <section class="sc-section">
@@ -1116,19 +1200,72 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
     </div>`;
 }
 function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
+function pdfEscape(v) { return String(v ?? "").replace(/[^\x20-\x7E]/g, "?").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)"); }
+function pdfText(cmds, x, y, text, size = 9, bold = false) { cmds.push(`BT /F${bold ? 2 : 1} ${size} Tf ${x} ${y} Td (${pdfEscape(text)}) Tj ET`); }
+function pdfLine(cmds, x1, y1, x2, y2) { cmds.push(`${x1} ${y1} m ${x2} ${y2} l S`); }
+function makeScorecardPDF(pages) {
+    const objects = [];
+    const add = (body) => { objects.push(body); return objects.length; };
+    const font1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const font2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+    const pageRefs = [];
+    pages.forEach((content) => {
+        const stream = content.join("\n");
+        const contentRef = add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+        const pageRef = add(`<< /Type /Page /Parent PAGES_REF /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${font1} 0 R /F2 ${font2} 0 R >> >> /Contents ${contentRef} 0 R >>`);
+        pageRefs.push(pageRef);
+    });
+    const pagesRef = add(`<< /Type /Pages /Kids [${pageRefs.map(r => `${r} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
+    const catalogRef = add(`<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
+    const finalObjects = objects.map(o => o.replace(/PAGES_REF/g, `${pagesRef} 0 R`));
+    let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+    const offsets = [0];
+    finalObjects.forEach((body, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${body}\nendobj\n`; });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${finalObjects.length + 1}\n0000000000 65535 f \n`;
+    for (let i = 1; i <= finalObjects.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+    pdf += `trailer\n<< /Size ${finalObjects.length + 1} /Root ${catalogRef} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    return new Blob([pdf], { type: "application/pdf" });
+}
+function buildPDFPageHeader(cmds, title, subtitle) {
+    cmds.push("0.08 0.22 0.16 rg 0 0 595 842 re f", "0 0 0 rg");
+    pdfText(cmds, 40, 800, "T20 CRICKET LEAGUE", 9, true);
+    pdfText(cmds, 40, 778, title, 19, true);
+    pdfText(cmds, 40, 758, subtitle, 9, false);
+}
 function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated) {
-    const old = document.getElementById("scorecard-export-overlay");
-    if (old) old.remove();
-    const overlay = document.createElement("div");
-    overlay.id = "scorecard-export-overlay";
-    overlay.className = "scorecard-export-overlay";
-    overlay.innerHTML = buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitchCategory) + (resimulated ? `<div class="sc-resimulated">RESIMULATED MATCH · latest result counts</div>` : "");
-    document.body.appendChild(overlay);
-    document.body.classList.add("printing-scorecard");
-    window.setTimeout(() => {
-        window.print();
-        window.setTimeout(() => { document.body.classList.remove("printing-scorecard"); overlay.remove(); }, 700);
-    }, 80);
+    const pages = [];
+    const verification = [...(result.verification?.teamA || []), ...(result.verification?.teamB || [])];
+    const p1 = [];
+    buildPDFPageHeader(p1, "PLAYER TIER ANALYSIS", `${teamAName} vs ${teamBName} · ${pitchName || "Pitch"}${pitchCategory ? ` · ${pitchCategory}` : ""}`);
+    if (result.toss) pdfText(p1, 40, 742, `TOSS · ${result.toss.summary}`, 8, true);
+    let y = 725;
+    const cols = [40, 150, 215, 345, 475];
+    ["Player", "Role", "Uploaded", "Adjusted", "Tier"].forEach((h, i) => pdfText(p1, cols[i], y, h, 8, true));
+    pdfLine(p1, 40, y - 5, 555, y - 5); y -= 20;
+    verification.forEach(v => {
+        const tier = v.bowl?.class?.archetype || v.batTier || "-";
+        const base = v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batBase.avg}${v.batBase.auto ? " AUTO" : ""} / S ${v.batBase.sr}`;
+        const adjusted = v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batAdjusted.avg.toFixed(2)} / S ${v.batAdjusted.sr.toFixed(2)}`;
+        pdfText(p1, cols[0], y, v.name.slice(0, 22), 7); pdfText(p1, cols[1], y, v.role, 7); pdfText(p1, cols[2], y, base.slice(0, 24), 7); pdfText(p1, cols[3], y, adjusted.slice(0, 24), 7); pdfText(p1, cols[4], y, tier.slice(0, 16), 7, true); pdfLine(p1, 40, y - 4, 555, y - 4); y -= 24;
+    });
+    pdfText(p1, 40, 48, "AUTO = automatic tailender batting profile; HS is display/upload data only and is not used by the engine.", 7);
+    pages.push(p1);
+    const inningsPage = (x, title) => {
+        const cmds = []; buildPDFPageHeader(cmds, title.toUpperCase(), `${teamAName} vs ${teamBName} · ${result.margin}${result.toss ? ` · Toss: ${result.toss.summary}` : ""}`);
+        let yy = 725; pdfText(cmds, 40, yy, `TOTAL ${x.totalRuns}/${x.totalWkts} · ${Math.floor(x.deliveries.length / 6)}.${x.deliveries.length % 6} overs · RR ${x.deliveries.length ? (x.totalRuns / (x.deliveries.length / 6)).toFixed(2) : "0.00"}`, 10, true); yy -= 25;
+        ["Batter", "Dismissal", "R", "B", "4s", "6s", "SR"].forEach((h,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],yy,h,7,true)); pdfLine(cmds,40,yy-5,555,yy-5); yy-=19;
+        const dismissalText = (b) => { if (!b.out) return b.balls > 0 ? "not out" : "did not bat"; const d=x.deliveries.find(z=>z.isWicket&&z.batter===b.name); return d?.dismissalType === "bowled" ? `b ${d.bowler}` : d?.dismissalType || "out"; };
+        x.battingCard.forEach(b=>{ const vals=[b.name, dismissalText(b), b.runs,b.balls,b.fours,b.sixes,b.balls?((b.runs/b.balls)*100).toFixed(1):"-"]; vals.forEach((v,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],yy,String(v).slice(0,i<2?28:8),7,i===0)); pdfLine(cmds,40,yy-4,555,yy-4); yy-=17; });
+        yy-=10; pdfText(cmds,40,yy,"BOWLING",9,true); yy-=17; ["Bowler","O","M","R","W","Econ"].forEach((h,i)=>pdfText(cmds,[40,250,285,320,355,395][i],yy,h,7,true)); pdfLine(cmds,40,yy-5,555,yy-5); yy-=18;
+        x.bowlingCard.forEach(b=>{ const vals=[b.name,`${Math.floor(b.balls/6)}.${b.balls%6}`,b.maidens||0,b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):"-"]; vals.forEach((v,i)=>pdfText(cmds,[40,250,285,320,355,395][i],yy,String(v).slice(0,22),7,i===0)); pdfLine(cmds,40,yy-4,555,yy-4); yy-=17; });
+        yy-=8; pdfText(cmds,40,yy,"FALL OF WICKETS",8,true); yy-=14; pdfText(cmds,40,yy,(x.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} ${f.batter} (${f.over})`).join(" · ").slice(0,105)||"None",7); yy-=18; pdfText(cmds,40,yy,"PARTNERSHIPS",8,true); yy-=14; pdfText(cmds,40,yy,(x.partnerships||[]).map((p,i)=>`${i+1}: ${p.runs} (${p.balls}b)`).join(" · ").slice(0,105)||"None",7); yy-=18; pdfText(cmds,40,yy,`Extras: ${x.extras ?? 0}`,7); if (x===result.inn2) { yy-=18; pdfText(cmds,40,yy,`Player of the Match: ${result.playerOfMatch?.name || "-"}`,8,true); }
+        if (result.superOver) { yy-=28; pdfText(cmds,40,yy,"SUPER OVER",10,true); yy-=15; pdfText(cmds,40,yy,`${teamAName}: ${result.superOver.inn1.totalRuns}/${result.superOver.inn1.totalWkts} · ${teamBName}: ${result.superOver.inn2.totalRuns}/${result.superOver.inn2.totalWkts}`,8,true); }
+        if (resimulated && x===result.inn2) { pdfText(cmds,40,48,"RESIMULATED MATCH · latest fixture result counts",7,true); }
+        return cmds;
+    };
+    pages.push(inningsPage(result.inn1, `${teamAName} innings`)); pages.push(inningsPage(result.inn2, `${teamBName} innings`));
+    downloadBlob(makeScorecardPDF(pages), `${teamAName}-vs-${teamBName}-scorecard.pdf`);
 }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
@@ -1145,10 +1282,12 @@ function VerificationTable({ verification, teamName }) {
 }
 function Scorecard({ innings, title }) {
     const tier = "See Tier Verification";
+    const dismissalText = (b) => { if (!b.out) return b.balls > 0 ? "not out" : "did not bat"; const d = innings.deliveries.find(x => x.isWicket && x.batter === b.name); if (!d) return "out"; return d.dismissalType === "bowled" ? `b ${d.bowler}` : d.dismissalType || "out"; };
     const partnershipRows = innings.partnerships?.map((p, i) => React.createElement("span", { key: i, style: { marginRight: 10 } }, i + 1, ": ", p.runs, " (", p.balls, "b)")) || [];
     const fowRows = innings.fallOfWickets?.map((f, i) => React.createElement("span", { key: i, style: { marginRight: 10 } }, f.wicket, "-", f.score, " (", f.batter, ", ", f.over, ")")) || [];
     const battingRows = innings.battingCard.map((b) => React.createElement("tr", { key: b.id, style: { borderTop: `1px solid ${C.lineSoft}` } },
         React.createElement("td", { style: { padding: "5px 0" } }, b.name, !b.out && b.balls > 0 ? " *" : ""),
+        React.createElement("td", { style: { color: C.textDim, fontSize: 10 } }, dismissalText(b)),
         React.createElement("td", { style: { textAlign: "center", fontWeight: 700 } }, b.runs),
         React.createElement("td", { style: { textAlign: "center", color: C.textDim } }, b.balls),
         React.createElement("td", { style: { textAlign: "center", color: C.accent } }, b.balls ? ((b.runs / b.balls) * 100).toFixed(1) : "-"),
@@ -1168,7 +1307,7 @@ function Scorecard({ innings, title }) {
             React.createElement("span", { style: { fontFamily: serif, fontSize: 19, fontWeight: 700 } }, innings.totalRuns, React.createElement("span", { style: { color: C.textFaint, fontSize: 14 } }, "/", innings.totalWkts))),
         React.createElement("table", { style: { width: "100%", fontSize: 11, borderCollapse: "collapse" } },
             React.createElement("thead", null, React.createElement("tr", { style: eyebrow },
-                React.createElement("th", { style: { textAlign: "left" } }, "Batter"), React.createElement("th", null, "R"), React.createElement("th", null, "B"), React.createElement("th", null, "SR"), React.createElement("th", null, "4s"), React.createElement("th", null, "6s"), React.createElement("th", null, "Tier"))),
+                React.createElement("th", { style: { textAlign: "left" } }, "Batter"), React.createElement("th", { style: { textAlign: "left" } }, "Dismissal"), React.createElement("th", null, "R"), React.createElement("th", null, "B"), React.createElement("th", null, "SR"), React.createElement("th", null, "4s"), React.createElement("th", null, "6s"), React.createElement("th", null, "Tier"))),
             React.createElement("tbody", null, battingRows)),
         React.createElement("div", { style: { fontWeight: 700, color: C.accent, margin: "14px 0 7px", fontSize: 12.5 } }, "Bowling"),
         React.createElement("table", { style: { width: "100%", fontSize: 12, borderCollapse: "collapse" } },
@@ -1241,7 +1380,7 @@ function PlayMatchTab({ data, update, prefill }) {
             const existing = prefill?.fixtureId ? data.matches.filter((m) => m.fixtureId === prefill.fixtureId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
             const record = {
                 id: nid("m"), date: new Date().toISOString(), teamAId, teamBId, teamAName: teamA.name, teamBName: teamB.name,
-                pitchName: pitch.name, pitchCategory: pitch.category, inn1: r.inn1, inn2: r.inn2, winnerId: r.winnerId, margin: r.margin,
+                pitchName: pitch.name, pitchCategory: pitch.category, toss: r.toss, inn1: r.inn1, inn2: r.inn2, inn1TeamId: r.inn1TeamId, inn2TeamId: r.inn2TeamId, winnerId: r.winnerId, margin: r.margin,
                 playerOfMatch: r.playerOfMatch, verification: r.verification,
                 tournamentId: prefill?.tournamentId || null, fixtureId: prefill?.fixtureId || null,
                 resimulated: !!existing, resimulationOf: existing?.id || null,
@@ -1305,6 +1444,7 @@ function PlayMatchTab({ data, update, prefill }) {
             result.playerOfMatch && React.createElement("div", { style: { textAlign: "center", color: C.textDim, fontSize: 11.5, marginBottom: 12 } },
                 "Player of the Match: ",
                 React.createElement("b", { style: { color: C.accent2 } }, result.playerOfMatch.name)),
+            React.createElement("div", { style: { textAlign: "center", color: C.accent, fontSize: 12, fontWeight: 800, marginBottom: 7 } }, "TOSS · ", result.toss.summary),
             React.createElement("div", { style: { textAlign: "center", color: C.accent2, fontSize: 10.5, fontWeight: 700, marginBottom: 14 } }, result.rotationAudit),
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
@@ -1316,8 +1456,8 @@ function PlayMatchTab({ data, update, prefill }) {
                     React.createElement(ImageIcon, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save JPEG")),
             React.createElement("div", { style: { display: "flex", gap: 16, flexWrap: "wrap" } },
-                React.createElement(Scorecard, { innings: result.inn1, title: `${teamA.name} innings` }),
-                React.createElement(Scorecard, { innings: result.inn2, title: `${teamB.name} innings` })),
+                React.createElement(Scorecard, { innings: result.inn1, title: `${data.teams.find(t => t.id === result.inn1TeamId)?.name || teamA.name} innings` }),
+                React.createElement(Scorecard, { innings: result.inn2, title: `${data.teams.find(t => t.id === result.inn2TeamId)?.name || teamB.name} innings` })),
             React.createElement("div", { style: { textAlign: "center", marginTop: 14 } },
                 React.createElement("button", { onClick: () => setShowLog(!showLog), style: btn },
                     showLog ? "Hide" : "Show",
@@ -1345,16 +1485,20 @@ function computePointsTable(tournament, matches, teams) {
             return;
         a.played += 1;
         b.played += 1;
-        const o1 = m.inn1.deliveries.length / 6;
-        const o2 = m.inn2.deliveries.length / 6;
-        a.runsFor += m.inn1.totalRuns;
-        a.oversFor += o1;
-        a.runsAgainst += m.inn2.totalRuns;
-        a.oversAgainst += o2;
-        b.runsFor += m.inn2.totalRuns;
-        b.oversFor += o2;
-        b.runsAgainst += m.inn1.totalRuns;
-        b.oversAgainst += o1;
+        const o1 = Math.floor(m.inn1.deliveries.length / 6) + (m.inn1.deliveries.length % 6) / 6;
+        const o2 = Math.floor(m.inn2.deliveries.length / 6) + (m.inn2.deliveries.length % 6) / 6;
+        const firstId = m.inn1TeamId || m.teamAId;
+        const secondId = m.inn2TeamId || m.teamBId;
+        const firstTable = table[firstId], secondTable = table[secondId];
+        if (!firstTable || !secondTable) return;
+        firstTable.runsFor += m.inn1.totalRuns;
+        firstTable.oversFor += o1;
+        firstTable.runsAgainst += m.inn2.totalRuns;
+        firstTable.oversAgainst += o2;
+        secondTable.runsFor += m.inn2.totalRuns;
+        secondTable.oversFor += o2;
+        secondTable.runsAgainst += m.inn1.totalRuns;
+        secondTable.oversAgainst += o1;
         if (m.winnerId === m.teamAId) {
             a.won += 1;
             a.points += 2;
@@ -1459,6 +1603,20 @@ function generateNextKnockoutRound(tn, matches) {
     }
     return { fixtures, stage: nextStage };
 }
+function resolveSpecialPlayoffTeamId(fixture, side, allFixtures, matches) {
+    if (fixture[side]) return fixture[side];
+    const source = fixture[side === "teamAId" ? "sourceA" : "sourceB"];
+    if (!source) return null;
+    const byRound = (round) => allFixtures.find(f => f.round === round);
+    const result = (round) => { const f = byRound(round); return f ? getLatestFixtureMatch(matches, f.id) : null; };
+    if (source === "qualifier-winner") return result("Qualifier")?.winnerId || null;
+    if (source === "qualifier1-winner") return result("Qualifier 1")?.winnerId || null;
+    if (source === "qualifier1-loser") { const r=result("Qualifier 1"); return r ? (r.winnerId === r.teamAId ? r.teamBId : r.teamAId) : null; }
+    if (source === "eliminator-winner") return result("Eliminator")?.winnerId || null;
+    if (source === "qualifier2-winner") return result("Qualifier 2")?.winnerId || null;
+    return null;
+}
+
 function TournamentsTab({ data, update, onPlayFixture }) {
     const [name, setName] = useState("");
     const [selectedTeams, setSelectedTeams] = useState([]);
@@ -1512,13 +1670,22 @@ function TournamentsTab({ data, update, onPlayFixture }) {
     };
     const generateTop4Playoffs = (tn) => {
         const table = computePointsTable(tn, data.matches, data.teams);
-        if (table.length < 4)
-            return;
-        const [t1, t2, t3, t4] = table;
-        addPlayoffFixtures(tn, [
-            { id: nid("fx"), teamAId: t1.teamId, teamBId: t4.teamId, round: "Semi Final 1", played: false },
-            { id: nid("fx"), teamAId: t2.teamId, teamBId: t3.teamId, round: "Semi Final 2", played: false },
-        ]);
+        if ((tn.teamIds || []).length < 7 || table.length < 3) return;
+        const n = tn.teamIds.length;
+        const unresolved = "NOT DECIDED YET";
+        const fx = [];
+        if (n <= 8) {
+            const [t1, t2, t3] = table;
+            fx.push({ id: nid("fx"), teamAId: t2.teamId, teamBId: t3.teamId, round: "Qualifier", played: false, placeholderA: false, placeholderB: false });
+            fx.push({ id: nid("fx"), teamAId: t1.teamId, teamBId: null, round: "Final", played: false, placeholderB: unresolved, sourceB: "qualifier-winner" });
+        } else {
+            const [t1, t2, t3, t4] = table;
+            fx.push({ id: nid("fx"), teamAId: t1.teamId, teamBId: t2.teamId, round: "Qualifier 1", played: false });
+            fx.push({ id: nid("fx"), teamAId: t3.teamId, teamBId: t4.teamId, round: "Eliminator", played: false });
+            fx.push({ id: nid("fx"), teamAId: null, teamBId: null, round: "Qualifier 2", played: false, placeholderA: unresolved, placeholderB: unresolved, sourceA: "qualifier1-loser", sourceB: "eliminator-winner" });
+            fx.push({ id: nid("fx"), teamAId: null, teamBId: null, round: "Final", played: false, placeholderA: unresolved, placeholderB: unresolved, sourceA: "qualifier1-winner", sourceB: "qualifier2-winner" });
+        }
+        addPlayoffFixtures(tn, fx);
     };
     const generateGroupPlayoffs = (tn) => {
         if (!tn.groups)
@@ -1640,14 +1807,14 @@ function TournamentsTab({ data, update, onPlayFixture }) {
             }),
             tournament.format === "knockout" && React.createElement("div", { style: { marginTop: 18 } },
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8 } }, tournament.knockoutStage || "Knockout"),
-                (tournament.playoffFixtures || []).map((fx) => { const played = getLatestFixtureMatch(data.matches, fx.id); const a = data.teams.find(t => t.id === fx.teamAId)?.name || "?", b = data.teams.find(t => t.id === fx.teamBId)?.name || "?"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
+                (tournament.playoffFixtures || []).map((fx) => { const played = getLatestFixtureMatch(data.matches, fx.id); const resolvedA = resolveSpecialPlayoffTeamId(fx, "teamAId", tournament.playoffFixtures || [], data.matches), resolvedB = resolveSpecialPlayoffTeamId(fx, "teamBId", tournament.playoffFixtures || [], data.matches); const a = data.teams.find(t => t.id === (resolvedA || fx.teamAId))?.name || fx.placeholderA || "NOT DECIDED YET", b = data.teams.find(t => t.id === (resolvedB || fx.teamBId))?.name || fx.placeholderB || "NOT DECIDED YET"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
                     React.createElement("span", null,
                         a,
                         " ",
                         React.createElement("span", { style: { color: C.textFaint } }, "vs"),
                         " ",
                         b),
-                    played ? React.createElement("span", { style: { color: C.accent2, fontWeight: 700 } }, played.margin) : React.createElement("button", { onClick: () => onPlayFixture({ teamAId: fx.teamAId, teamBId: fx.teamBId, tournamentId: tournament.id, fixtureId: fx.id }), style: btn }, "Play")); }),
+                    played ? React.createElement("span", { style: { color: C.accent2, fontWeight: 700 } }, played.margin) : (resolvedA && resolvedB ? React.createElement("button", { onClick: () => onPlayFixture({ teamAId: resolvedA, teamBId: resolvedB, tournamentId: tournament.id, fixtureId: fx.id }), style: btn }, "Play") : React.createElement("span", { style: { color: C.textFaint, fontSize: 11 } }, "Pending qualification"))); }),
                 tournament.knockoutStage !== "Final" && (tournament.playoffFixtures || []).filter(f => f.round === tournament.knockoutStage).length > 0 && (tournament.playoffFixtures || []).filter(f => f.round === tournament.knockoutStage).every(f => data.matches.some(m => m.fixtureId === f.id)) && React.createElement("button", { onClick: () => advanceKnockout(tournament), style: { ...btn, marginTop: 10 } }, "Generate Next Round"),
                 tournament.knockoutStage === "Final" && (tournament.playoffFixtures || []).some(f => f.round === "Final") && data.matches.some(m => m.fixtureId === (tournament.playoffFixtures || []).find(f => f.round === "Final").id) && React.createElement("div", { style: { marginTop: 14, textAlign: "center", fontFamily: serif, fontSize: 17, color: C.accent } },
                     React.createElement(Trophy, { size: 18 }),
@@ -1656,7 +1823,7 @@ function TournamentsTab({ data, update, onPlayFixture }) {
             tournament.format !== "knockout" && React.createElement("div", { style: { marginTop: 18 } },
                 tournament.format === "round-robin-playoffs" && allMainPlayed && (tournament.playoffFixtures || []).length === 0 && React.createElement("button", { onClick: () => generateTop4Playoffs(tournament), style: btn }, "Generate Semi Finals (top 4)"),
                 tournament.format === "groups-knockout" && groupMainPlayed && (tournament.playoffFixtures || []).length === 0 && React.createElement("button", { onClick: () => generateGroupPlayoffs(tournament), style: btn }, "Generate Semi Finals"),
-                (tournament.playoffFixtures || []).map((fx) => { const played = data.matches.find(m => m.fixtureId === fx.id); const a = data.teams.find(t => t.id === fx.teamAId)?.name || "?", b = data.teams.find(t => t.id === fx.teamBId)?.name || "?"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
+                (tournament.playoffFixtures || []).map((fx) => { const played = data.matches.find(m => m.fixtureId === fx.id); const resolvedA = resolveSpecialPlayoffTeamId(fx, "teamAId", tournament.playoffFixtures || [], data.matches), resolvedB = resolveSpecialPlayoffTeamId(fx, "teamBId", tournament.playoffFixtures || [], data.matches); const a = data.teams.find(t => t.id === (resolvedA || fx.teamAId))?.name || fx.placeholderA || "NOT DECIDED YET", b = data.teams.find(t => t.id === (resolvedB || fx.teamBId))?.name || fx.placeholderB || "NOT DECIDED YET"; return React.createElement("div", { key: fx.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
                     React.createElement("span", null,
                         React.createElement("b", { style: { color: C.accent } }, fx.round),
                         " \u00B7 ",
@@ -1695,7 +1862,7 @@ function ScheduleTab({ data, onPlayFixture }) {
                 "/",
                 allFixtures.length,
                 " played")),
-        allFixtures.map((fx, i) => { const played = getLatestFixtureMatch(data.matches, fx.id); const a = data.teams.find(x => x.id === fx.teamAId)?.name || "?"; const b = data.teams.find(x => x.id === fx.teamBId)?.name || "?"; return React.createElement("div", { key: fx.id, style: { display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 12, alignItems: "center", padding: "12px 4px", borderBottom: `1px solid ${C.lineSoft}` } },
+        allFixtures.map((fx, i) => { const played = getLatestFixtureMatch(data.matches, fx.id); const resolvedA = resolveSpecialPlayoffTeamId(fx, "teamAId", t.playoffFixtures || [], data.matches), resolvedB = resolveSpecialPlayoffTeamId(fx, "teamBId", t.playoffFixtures || [], data.matches); const a = data.teams.find(x => x.id === (resolvedA || fx.teamAId))?.name || fx.placeholderA || "NOT DECIDED YET"; const b = data.teams.find(x => x.id === (resolvedB || fx.teamBId))?.name || fx.placeholderB || "NOT DECIDED YET"; return React.createElement("div", { key: fx.id, style: { display: "grid", gridTemplateColumns: "90px 1fr auto", gap: 12, alignItems: "center", padding: "12px 4px", borderBottom: `1px solid ${C.lineSoft}` } },
             React.createElement("span", { style: { ...eyebrow, color: C.accent } },
                 "#",
                 fx.matchNo || i + 1),
