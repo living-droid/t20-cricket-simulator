@@ -151,14 +151,7 @@ function classifyBowlerForPitch(economy, sr, avg, pitch) {
     }
     return { archetype: `${best.name} (pitch tier)`, o: best.o };
 }
-function hasSuppliedNumber(value) {
-    if (value === null || value === undefined)
-        return false;
-    if (typeof value === "string" && value.trim() === "")
-        return false;
-    const n = Number(value);
-    return Number.isFinite(n);
-}
+function hasSuppliedNumber(v) { return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)); }
 function getBattingProfile(p) {
     const suppliedAvg = Number(p.avg);
     const suppliedSR = Number(p.sr);
@@ -204,7 +197,7 @@ function getPreMatchVerification(xi, pitch) {
         const bat = pitchAdjustedProfile(p, pitch);
         const batClass = classifyBatsman(bat.sr, bat.avg);
         let bowl = null;
-        if (p.isBowler && hasSuppliedNumber(p.econ) && hasSuppliedNumber(p.bowlSR) && hasSuppliedNumber(p.bowlAvg)) {
+        if (p.isBowler && Number.isFinite(Number(p.econ)) && Number.isFinite(Number(p.bowlSR)) && Number.isFinite(Number(p.bowlAvg))) {
             const bp = pitchAdjustedBowlerProfile(p, pitch);
             bowl = { ...bp, class: classifyBowlerForPitch(bp.econ, bp.bowlSR, bp.bowlAvg, pitch) };
         }
@@ -642,8 +635,8 @@ function parsePlayingXIText(text) {
                 warnings.push(`${teamName}: rotation player "${playerName}" was not found in the XI.`);
                 return;
             }
-            if (!player.isBowler || !hasSuppliedNumber(player.bowlSR) || !hasSuppliedNumber(player.econ)) {
-                warnings.push(`${teamName}: ${player.name} is assigned overs but has no complete bowling stats.`);
+            if (!player.isBowler) {
+                warnings.push(`${teamName}: ${player.name} is assigned overs but has no bowling stats.`);
             }
             if (overs.length > 4)
                 warnings.push(`${teamName}: ${player.name} has more than 4 overs locked.`);
@@ -715,7 +708,8 @@ function mergeImportedData(data, parsed) {
     return { ...data, players, teams, importWarnings: warnings };
 }
 function PlayersTab({ data, update }) {
-    const [draft, setDraft] = useState({ name: "", avg: "", sr: "", hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
+    const blankPlayer = { name: "", avg: "", sr: "", hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" };
+    const [draft, setDraft] = useState(blankPlayer);
     const [bulkText, setBulkText] = useState("");
     const [importMessage, setImportMessage] = useState("");
     const [importWarnings, setImportWarnings] = useState([]);
@@ -733,27 +727,39 @@ function PlayersTab({ data, update }) {
         setImportMessage(`Imported ${parsed.teams.length} team${parsed.teams.length === 1 ? "" : "s"} and ${parsed.teams.reduce((n, t) => n + t.players.length, 0)} players.`);
     };
     const addPlayer = () => {
-        if (!draft.name.trim())
+        const name = draft.name.trim();
+        if (!name)
             return;
-        const hasBat = hasSuppliedNumber(draft.avg) && hasSuppliedNumber(draft.sr);
-        const hasBowl = hasSuppliedNumber(draft.bowlAvg) && hasSuppliedNumber(draft.bowlSR) && hasSuppliedNumber(draft.econ);
-        if (!draft.isBowler && !hasBat)
+        const isBowler = !!draft.isBowler;
+        if (!isBowler && (!hasSuppliedNumber(draft.avg) || !hasSuppliedNumber(draft.sr))) {
+            alert("A non-bowler needs Bat Avg and Bat SR. If this is a tailender, tick Bowler and enter the bowling stats instead.");
             return;
-        if (draft.isBowler && !hasBowl)
+        }
+        if (isBowler && (!hasSuppliedNumber(draft.bowlAvg) || !hasSuppliedNumber(draft.bowlSR) || !hasSuppliedNumber(draft.econ))) {
+            alert("A bowler needs complete Bowl Avg, Bowl SR and Economy. Bat Avg/SR can be left blank.");
             return;
+        }
+        if (isBowler && !draft.bowlingType) {
+            alert("Select the bowling type for this bowler.");
+            return;
+        }
         const player = {
-            ...draft,
-            avg: hasBat ? Number(draft.avg) : null,
-            sr: hasBat ? Number(draft.sr) : null,
-            hs: draft.hs === "" ? null : Number(draft.hs),
-            bowlAvg: hasBowl ? Number(draft.bowlAvg) : null,
-            bowlSR: hasBowl ? Number(draft.bowlSR) : null,
-            econ: hasBowl ? Number(draft.econ) : null,
+            id: nid("p"),
+            name,
+            avg: hasSuppliedNumber(draft.avg) ? Number(draft.avg) : null,
+            sr: hasSuppliedNumber(draft.sr) ? Number(draft.sr) : null,
+            hs: hasSuppliedNumber(draft.hs) ? Number(draft.hs) : null,
+            isBowler,
+            bowlAvg: hasSuppliedNumber(draft.bowlAvg) ? Number(draft.bowlAvg) : null,
+            bowlSR: hasSuppliedNumber(draft.bowlSR) ? Number(draft.bowlSR) : null,
+            econ: hasSuppliedNumber(draft.econ) ? Number(draft.econ) : null,
+            bowlingType: draft.bowlingType || "",
             isSpin: /spin/i.test(draft.bowlingType || ""),
-            id: nid("p")
+            isWK: false,
+            isCaptain: false
         };
         update({ ...data, players: [...data.players, player] });
-        setDraft({ name: "", avg: "", sr: "", hs: "", isBowler: false, bowlAvg: "", bowlSR: "", econ: "", bowlingType: "" });
+        setDraft(blankPlayer);
     };
     const removePlayer = (id) => update({ ...data, players: data.players.filter((p) => p.id !== id), teams: data.teams.map(t => ({ ...t, squad: t.squad.filter(pid => pid !== id), xiOrder: t.xiOrder.filter(pid => pid !== id) })) });
     return (React.createElement("div", { style: card },
@@ -1164,7 +1170,6 @@ function Scorecard({ innings, title }) {
 // ============================================================================
 // PLAY MATCH TAB
 // ============================================================================
-function hasSuppliedNumber(v) { return v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)); }
 function getTeamSimulationIssues(team, playerLookup) {
     const xi = (team?.xiOrder || []).map((id) => playerLookup[id]).filter(Boolean);
     const issues = [];
