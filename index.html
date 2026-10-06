@@ -555,8 +555,14 @@ const EMPTY_DATA = { players: [], pitches: [], teams: [], matches: [], tournamen
 async function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw)
-            return { ...EMPTY_DATA, ...JSON.parse(raw) };
+        if (raw) {
+            const parsed = { ...EMPTY_DATA, ...JSON.parse(raw) };
+            parsed.teams = (parsed.teams || []).map((t) => ({
+                ...t,
+                color: (!t.color || String(t.color).toUpperCase() === "#1D6B47") ? "#64748B" : t.color
+            }));
+            return parsed;
+        }
         return EMPTY_DATA;
     }
     catch (e) {
@@ -773,7 +779,7 @@ function mergeImportedData(data, parsed) {
         if (!team) {
             if (teams.length >= 10)
                 return;
-            team = { id: nid("t"), name: sourceTeam.name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+            team = { id: nid("t"), name: sourceTeam.name, color: "#64748B", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
             teams.push(team);
             teamByName.set(sourceTeam.name.toLowerCase(), team);
         }
@@ -1012,7 +1018,7 @@ function TeamsTab({ data, update }) {
     const addTeam = () => {
         if (!name.trim() || data.teams.length >= 10)
             return;
-        const t = { id: nid("t"), name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+        const t = { id: nid("t"), name, color: "#64748B", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
         update({ ...data, teams: [...data.teams, t] });
         setName("");
         setEditingId(t.id);
@@ -1042,6 +1048,7 @@ function TeamsTab({ data, update }) {
                 React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
                     React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 8 } },
                         React.createElement(ChevronRight, { size: 13, color: C.textFaint }),
+                        React.createElement("span", { style: { width: 11, height: 11, borderRadius: "50%", background: t.color || "#64748B", border: `1px solid ${C.line}`, display: "inline-block", flexShrink: 0 } }),
                         React.createElement("span", { style: { fontWeight: 700 } }, t.name),
                         React.createElement(Badge, { color: t.xiOrder.length === 11 ? C.accent2 : C.textFaint },
                             t.xiOrder.length,
@@ -1057,9 +1064,9 @@ function TeamsTab({ data, update }) {
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
                     "Team Color"),
                 React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-                    React.createElement("input", { type: "color", value: editing.color || "#1D6B47", onChange: (e) => updateTeam(editing.id, { color: e.target.value }), style: { width: 44, height: 34, padding: 2, borderRadius: 7, border: `1px solid ${C.line}`, background: C.panel, cursor: "pointer" } }),
-                    React.createElement("span", { style: { fontSize: 11, color: C.textDim, fontFamily: mono } }, (editing.color || "#1D6B47").toUpperCase()),
-                    React.createElement("span", { style: { width: 14, height: 14, borderRadius: 50, background: editing.color || "#1D6B47", border: `1px solid ${C.line}`, display: "inline-block" } })
+                    React.createElement("input", { type: "color", value: editing.color || "#64748B", onChange: (e) => updateTeam(editing.id, { color: e.target.value }), style: { width: 44, height: 34, padding: 2, borderRadius: 7, border: `1px solid ${C.line}`, background: C.panel, cursor: "pointer" } }),
+                    React.createElement("span", { style: { fontSize: 11, color: C.textDim, fontFamily: mono } }, (editing.color || "#64748B").toUpperCase()),
+                    React.createElement("span", { style: { width: 14, height: 14, borderRadius: 50, background: editing.color || "#64748B", border: `1px solid ${C.line}`, display: "inline-block" } })
                 )),
             React.createElement("div", { style: { background: C.panelAlt, borderRadius: 9, padding: 14, marginBottom: 16, border: `1px solid ${C.lineSoft}` } },
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
@@ -1268,7 +1275,7 @@ function makeScorecardPDF(pages) {
 }
 function cricketOversFromBalls(balls){const n=Math.max(0,Number(balls)||0);return `${Math.floor(n/6)}.${n%6}`;}
 function cricketRR(runs,balls){const n=Number(balls)||0;return n?(Number(runs||0)/(n/6)).toFixed(2):"0.00";}
-function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName, teamAColor="#1D6B47", teamBColor="#B34A3C") {
+function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName, teamAColor="#64748B", teamBColor="#64748B") {
     const pages=[];
     const navy=[0.08,0.13,0.22], text=[0.19,0.25,0.35], muted=[0.36,0.43,0.54], line=[0.86,0.88,0.91], green=[0.00,0.48,0.34], greenBg=[0.91,0.98,0.95], gold=[0.88,0.60,0.00], red=[0.65,0.08,0.07], orange=[0.82,0.30,0.03], white=[1,1,1], pale=[0.96,0.97,0.98];
     const teamAHeader=hexToPdfColor(teamAColor, gold);
@@ -1498,7 +1505,7 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified", teamA.color || "#1D6B47", teamB.color || "#B34A3C"), style: btn },
+                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified", teamA.color || "#64748B", teamB.color || "#64748B"), style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save / Print PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
