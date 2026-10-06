@@ -1233,38 +1233,104 @@ function buildPDFPageHeader(cmds, title, subtitle) {
     pdfText(cmds, 40, 778, title, 19, true);
     pdfText(cmds, 40, 758, subtitle, 9, false);
 }
+function cricketOversFromBalls(balls) {
+    const n = Math.max(0, Number(balls) || 0);
+    return `${Math.floor(n / 6)}.${n % 6}`;
+}
+function cricketRR(runs, balls) {
+    const n = Number(balls) || 0;
+    return n ? (Number(runs || 0) / (n / 6)).toFixed(2) : "0.00";
+}
 function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated) {
     const pages = [];
     const verification = [...(result.verification?.teamA || []), ...(result.verification?.teamB || [])];
-    const p1 = [];
-    buildPDFPageHeader(p1, "PLAYER TIER ANALYSIS", `${teamAName} vs ${teamBName} · ${pitchName || "Pitch"}${pitchCategory ? ` · ${pitchCategory}` : ""}`);
-    if (result.toss) pdfText(p1, 40, 742, `TOSS · ${result.toss.summary}`, 8, true);
-    let y = 725;
-    const cols = [40, 150, 215, 345, 475];
-    ["Player", "Role", "Uploaded", "Adjusted", "Tier"].forEach((h, i) => pdfText(p1, cols[i], y, h, 8, true));
-    pdfLine(p1, 40, y - 5, 555, y - 5); y -= 20;
-    verification.forEach(v => {
-        const tier = v.bowl?.class?.archetype || v.batTier || "-";
-        const base = v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batBase.avg}${v.batBase.auto ? " AUTO" : ""} / S ${v.batBase.sr}`;
-        const adjusted = v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batAdjusted.avg.toFixed(2)} / S ${v.batAdjusted.sr.toFixed(2)}`;
-        pdfText(p1, cols[0], y, v.name.slice(0, 22), 7); pdfText(p1, cols[1], y, v.role, 7); pdfText(p1, cols[2], y, base.slice(0, 24), 7); pdfText(p1, cols[3], y, adjusted.slice(0, 24), 7); pdfText(p1, cols[4], y, tier.slice(0, 16), 7, true); pdfLine(p1, 40, y - 4, 555, y - 4); y -= 24;
-    });
-    pdfText(p1, 40, 48, "AUTO = automatic tailender batting profile; HS is display/upload data only and is not used by the engine.", 7);
-    pages.push(p1);
-    const inningsPage = (x, title) => {
-        const cmds = []; buildPDFPageHeader(cmds, title.toUpperCase(), `${teamAName} vs ${teamBName} · ${result.margin}${result.toss ? ` · Toss: ${result.toss.summary}` : ""}`);
-        let yy = 725; pdfText(cmds, 40, yy, `TOTAL ${x.totalRuns}/${x.totalWkts} · ${Math.floor(x.deliveries.length / 6)}.${x.deliveries.length % 6} overs · RR ${x.deliveries.length ? (x.totalRuns / (x.deliveries.length / 6)).toFixed(2) : "0.00"}`, 10, true); yy -= 25;
-        ["Batter", "Dismissal", "R", "B", "4s", "6s", "SR"].forEach((h,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],yy,h,7,true)); pdfLine(cmds,40,yy-5,555,yy-5); yy-=19;
-        const dismissalText = (b) => { if (!b.out) return b.balls > 0 ? "not out" : "did not bat"; const d=x.deliveries.find(z=>z.isWicket&&z.batter===b.name); return d?.dismissalType === "bowled" ? `b ${d.bowler}` : d?.dismissalType || "out"; };
-        x.battingCard.forEach(b=>{ const vals=[b.name, dismissalText(b), b.runs,b.balls,b.fours,b.sixes,b.balls?((b.runs/b.balls)*100).toFixed(1):"-"]; vals.forEach((v,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],yy,String(v).slice(0,i<2?28:8),7,i===0)); pdfLine(cmds,40,yy-4,555,yy-4); yy-=17; });
-        yy-=10; pdfText(cmds,40,yy,"BOWLING",9,true); yy-=17; ["Bowler","O","M","R","W","Econ"].forEach((h,i)=>pdfText(cmds,[40,250,285,320,355,395][i],yy,h,7,true)); pdfLine(cmds,40,yy-5,555,yy-5); yy-=18;
-        x.bowlingCard.forEach(b=>{ const vals=[b.name,`${Math.floor(b.balls/6)}.${b.balls%6}`,b.maidens||0,b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):"-"]; vals.forEach((v,i)=>pdfText(cmds,[40,250,285,320,355,395][i],yy,String(v).slice(0,22),7,i===0)); pdfLine(cmds,40,yy-4,555,yy-4); yy-=17; });
-        yy-=8; pdfText(cmds,40,yy,"FALL OF WICKETS",8,true); yy-=14; pdfText(cmds,40,yy,(x.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} ${f.batter} (${f.over})`).join(" · ").slice(0,105)||"None",7); yy-=18; pdfText(cmds,40,yy,"PARTNERSHIPS",8,true); yy-=14; pdfText(cmds,40,yy,(x.partnerships||[]).map((p,i)=>`${i+1}: ${p.runs} (${p.balls}b)`).join(" · ").slice(0,105)||"None",7); yy-=18; pdfText(cmds,40,yy,`Extras: ${x.extras ?? 0}`,7); if (x===result.inn2) { yy-=18; pdfText(cmds,40,yy,`Player of the Match: ${result.playerOfMatch?.name || "-"}`,8,true); }
-        if (result.superOver) { yy-=28; pdfText(cmds,40,yy,"SUPER OVER",10,true); yy-=15; pdfText(cmds,40,yy,`${teamAName}: ${result.superOver.inn1.totalRuns}/${result.superOver.inn1.totalWkts} · ${teamBName}: ${result.superOver.inn2.totalRuns}/${result.superOver.inn2.totalWkts}`,8,true); }
-        if (resimulated && x===result.inn2) { pdfText(cmds,40,48,"RESIMULATED MATCH · latest fixture result counts",7,true); }
-        return cmds;
+    const tossText = result.toss?.summary || "Toss not recorded";
+    const matchLine = result.margin || `${teamAName} vs ${teamBName}`;
+    const inningsLabel = (x, fallback) => `${x?.teamName || fallback}`;
+    const teamNameForInnings = (x, fallbackId, fallbackName) => {
+        if (x?.teamName) return x.teamName;
+        if (x?.teamId === fallbackId) return fallbackName;
+        return fallbackName;
     };
-    pages.push(inningsPage(result.inn1, `${teamAName} innings`)); pages.push(inningsPage(result.inn2, `${teamBName} innings`));
+    const safeDismissal = (x, b) => {
+        if (!b.out) return b.balls > 0 ? "not out" : "did not bat";
+        const d = x.deliveries?.find(z => z.isWicket && z.batter === b.name);
+        if (!d) return "out";
+        if (d.dismissalType === "bowled") return `b ${d.bowler}`;
+        return d.dismissalType || "out";
+    };
+    const extrasText = (x) => {
+        if (x.extrasBreakdown) {
+            const e = x.extrasBreakdown;
+            const total = Number(x.extras ?? (e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0));
+            return `${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;
+        }
+        return String(x.extras ?? 0);
+    };
+    const addInnings = (cmds, x, battingTeam, bowlingTeam, yStart) => {
+        let y = yStart;
+        pdfText(cmds, 40, y, `${battingTeam}: ${x.totalRuns}/${x.totalWkts} (${cricketOversFromBalls(x.deliveries?.length || 0)} Overs, RR: ${cricketRR(x.totalRuns, x.deliveries?.length || 0)})`, 11, true); y -= 18;
+        pdfText(cmds, 40, y, `Batting — ${battingTeam}`, 9, true); y -= 15;
+        ["Batter","Dismissal","R","B","4s","6s","SR"].forEach((h,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],y,h,7,true));
+        pdfLine(cmds,40,y-5,555,y-5); y -= 18;
+        (x.battingCard || []).forEach(b=>{
+            const vals=[b.name,safeDismissal(x,b),b.runs,b.balls,b.fours,b.sixes,b.balls?((b.runs/b.balls)*100).toFixed(2):"-"];
+            vals.forEach((v,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],y,String(v).slice(0,i<2?29:8),7,i===0));
+            y -= 16;
+        });
+        const didNotBat=(x.battingCard||[]).filter(b=>!b.out && !b.balls).map(b=>b.name);
+        if (didNotBat.length) { y -= 2; pdfText(cmds,40,y,`Did not bat: ${didNotBat.join(", ")}`,7); y -= 14; }
+        pdfText(cmds,40,y,`Extras: ${extrasText(x)} · Total: ${x.totalRuns}/${x.totalWkts} (${cricketOversFromBalls(x.deliveries?.length || 0)} Overs, RR: ${cricketRR(x.totalRuns,x.deliveries?.length || 0)})`,7); y -= 17;
+        pdfText(cmds,40,y,`Fall of Wickets: ${(x.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} (${f.batter}, ${f.over} ov)`).join(", ") || "None"}`,7); y -= 18;
+        pdfText(cmds,40,y,`Bowling — ${bowlingTeam}`, 9, true); y -= 15;
+        ["Bowler","Overs","M","R","W","Econ","Overs Bowled"].forEach((h,i)=>pdfText(cmds,[40,205,255,290,325,365,420][i],y,h,7,true));
+        pdfLine(cmds,40,y-5,555,y-5); y -= 18;
+        (x.bowlingCard || []).forEach(b=>{
+            const overList = (b.overNumbers || b.overs || []).join(", ");
+            const vals=[b.name,cricketOversFromBalls(b.balls),b.maidens||0,b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):"-",overList || "-"];
+            vals.forEach((v,i)=>pdfText(cmds,[40,205,255,290,325,365,420][i],y,String(v).slice(0,22),7,i===0));
+            y -= 16;
+        });
+        if (y > 90) {
+            const ps=(x.partnerships||[]).map((p,i)=>`${i+1}: ${p.runs} runs (${p.balls} balls)`).join(" · ");
+            if (ps) { pdfText(cmds,40,y,"Partnerships",7,true); y-=12; pdfText(cmds,40,y,ps.slice(0,125),7); y-=15; }
+        }
+        return y;
+    };
+
+    // PAGE 1 — Match header + first innings.
+    const p1=[];
+    buildPDFPageHeader(p1, `${teamAName} vs ${teamBName}`, `T20 CRICKET LEAGUE · ${pitchName || "Pitch"}${pitchCategory ? ` · ${pitchCategory}` : ""}`);
+    pdfText(p1,40,742,`TOSS · ${tossText}`,8,true);
+    pdfText(p1,40,726,matchLine,9,true);
+    if (resimulated) pdfText(p1,40,712,"RESIMULATED MATCH · latest fixture result counts",7,true);
+    addInnings(p1,result.inn1,teamAName,teamBName,690);
+    pages.push(p1);
+
+    // PAGE 2 — Second innings, match details, then PLAYER TIER ANALYSIS as the final section.
+    const p2=[];
+    buildPDFPageHeader(p2, `${teamBName} innings`, `${teamAName} vs ${teamBName} · ${matchLine}`);
+    pdfText(p2,40,742,`TOSS · ${tossText}`,8,true);
+    let yy=724;
+    yy=addInnings(p2,result.inn2,teamBName,teamAName,yy)-18;
+    pdfText(p2,40,yy,`PLAYER OF THE MATCH · ${result.playerOfMatch?.name || "-"}`,9,true); yy-=18;
+    if (result.turningPoint) { pdfText(p2,40,yy,"TURNING POINT",9,true); yy-=14; pdfText(p2,40,yy,String(result.turningPoint).slice(0,125),7); yy-=22; }
+    if (result.superOver) { pdfText(p2,40,yy,"SUPER OVER",9,true); yy-=14; pdfText(p2,40,yy,`${teamAName}: ${result.superOver.inn1.totalRuns}/${result.superOver.inn1.totalWkts} · ${teamBName}: ${result.superOver.inn2.totalRuns}/${result.superOver.inn2.totalWkts}`,8,true); yy-=20; }
+    yy=Math.max(yy,245);
+    pdfText(p2,40,yy,"PLAYER TIER ANALYSIS",11,true); yy-=16;
+    pdfText(p2,40,yy,"Uploaded stats and the simulator's assigned tier",7); yy-=15;
+    ["Player","Role","Uploaded Stats","Game-Adjusted Stats","Assigned Tier"].forEach((h,i)=>pdfText(p2,[40,150,215,345,475][i],yy,h,7,true));
+    pdfLine(p2,40,yy-5,555,yy-5); yy-=17;
+    verification.forEach(v=>{
+        if (yy < 58) return;
+        const tier=v.bowl?.class?.archetype || v.batTier || "-";
+        const base=v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batBase.avg}${v.batBase.auto?" AUTO":""} / S ${v.batBase.sr}`;
+        const adjusted=v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batAdjusted.avg.toFixed(2)} / S ${v.batAdjusted.sr.toFixed(2)}`;
+        [v.name,v.role,base,adjusted,tier].forEach((val,i)=>pdfText(p2,[40,150,215,345,475][i],yy,String(val).slice(0,i===0?24:18),7,i===0||i===4));
+        pdfLine(p2,40,yy-4,555,yy-4); yy-=18;
+    });
+    pdfText(p2,40,48,"AUTO = automatic tailender batting profile · HS is display/upload data only and does not affect simulation.",7);
+    pages.push(p2);
     downloadBlob(makeScorecardPDF(pages), `${teamAName}-vs-${teamBName}-scorecard.pdf`);
 }
 function exportScorecardJPEG(result, teamAName, teamBName) {
