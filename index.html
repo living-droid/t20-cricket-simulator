@@ -208,7 +208,7 @@ function resolveDelivery(v, rng) {
     let acc = 0;
     acc += v.wicket;
     if (x < acc)
-        return { outcome: "W", runs: 0, isWicket: true, dismissalType: "bowled" };
+        return { outcome: "W", runs: 0, isWicket: true };
     acc += v.dot;
     if (x < acc)
         return { outcome: "0", runs: 0, isWicket: false };
@@ -225,6 +225,27 @@ function resolveDelivery(v, rng) {
     if (x < acc)
         return { outcome: "4", runs: 4, isWicket: false };
     return { outcome: "6", runs: 6, isWicket: false };
+}
+function assignDismissal(striker, bowler, fieldingXI, rng) {
+    const fielders = (fieldingXI || []).filter(p => p && p.id !== bowler.id && p.id !== striker.id);
+    const keeper = fielders.find(p => p.isWK) || null;
+    const isSpin = /spin/i.test(String(bowler.bowlingType || ""));
+    const r = rng();
+    if (isSpin && keeper && r < 0.12) return { type: "stumped", fielder: keeper.name, creditedToBowler: true };
+    if (r < 0.42) return { type: "caught", fielder: (fielders[0] || keeper || bowler).name, creditedToBowler: true };
+    if (r < 0.70) return { type: "bowled", fielder: null, creditedToBowler: true };
+    if (r < 0.90) return { type: "lbw", fielder: null, creditedToBowler: true };
+    if (keeper && r < 0.96) return { type: "stumped", fielder: keeper.name, creditedToBowler: true };
+    return { type: "bowled", fielder: null, creditedToBowler: true };
+}
+function dismissalTextFromDelivery(d) {
+    if (!d || !d.isWicket) return "";
+    if (d.dismissalType === "caught") return `c ${d.fielder || "Fielder"} b ${d.bowler}`;
+    if (d.dismissalType === "stumped") return `st ${d.fielder || "Wicketkeeper"} b ${d.bowler}`;
+    if (d.dismissalType === "lbw") return `lbw b ${d.bowler}`;
+    if (d.dismissalType === "hit wicket") return `hit wicket b ${d.bowler}`;
+    if (d.dismissalType === "run out") return `run out (${d.fielder || "Fielder"})`;
+    return `b ${d.bowler}`;
 }
 function simulateBall(batter, bowler, pitch, over, rng) {
     const batStats = pitchAdjustedProfile(batter, pitch);
@@ -249,7 +270,7 @@ function validateRotation(rotation, bowlers) {
     }
     return { ok: true };
 }
-function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) {
+function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target, fieldingXI) {
     const deliveries = [];
     const battingCard = battingXI.map((p) => ({ id: p.id, name: p.name, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, hs: Number.isFinite(Number(p.hs)) ? Number(p.hs) : null }));
     const bowlingMap = {};
@@ -282,14 +303,16 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
             bl.balls += 1;
             currentPartnership.balls += 1;
             if (res.isWicket) {
+                const dismissal = assignDismissal(striker, bowler, fieldingXI, rng);
                 blLine.out = true;
                 totalWkts += 1;
-                bl.wkts += 1;
+                if (dismissal.creditedToBowler) bl.wkts += 1;
                 currentPartnership.wicket = totalWkts;
-                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: `${over}.${ball}`, dismissalType: res.dismissalType || "bowled", bowler: bowler.name });
+                const wicketEvent = { over, ball, batter: striker.name, bowler: bowler.name, ...res, dismissalType: dismissal.type, fielder: dismissal.fielder || null, creditedToBowler: dismissal.creditedToBowler };
+                fallOfWickets.push({ wicket: totalWkts, score: totalRuns, batter: striker.name, over: cricketOversFromBalls((over - 1) * 6 + ball), dismissalType: dismissal.type, fielder: dismissal.fielder || null, bowler: bowler.name });
                 partnerships.push({ ...currentPartnership, wicket: totalWkts });
                 currentPartnership = { runs: 0, balls: 0, wicket: 0 };
-                deliveries.push({ over, ball, batter: striker.name, bowler: bowler.name, ...res });
+                deliveries.push(wicketEvent);
                 if (nextIn < battingXI.length) {
                     strikerIdx = nextIn;
                     nextIn += 1;
@@ -330,7 +353,7 @@ function simulateInnings(battingXI, rotation, bowlerLookup, pitch, rng, target) 
             overs[key].runs += Number(d.runs) || 0;
         });
         const maidens = Object.values(overs).filter((o) => o.balls === 6 && o.runs === 0).length;
-        return { ...b, maidens };
+        return { ...b, maidens, overNumbers: Object.keys(overs).map(Number).sort((a,b)=>a-b), overs: Object.keys(overs).map(Number).sort((a,b)=>a-b) };
     });
     return { deliveries, battingCard, bowlingCard, totalRuns, totalWkts, fallOfWickets, partnerships, extras: 0 };
 }
@@ -345,9 +368,10 @@ function simulateSuperOver(battingXI, bowler, pitch, rng, target) {
         const res = simulateBall(source, bowler, pitch, 0, rng);
         striker.balls += 1;
         if (res.isWicket) {
+            const dismissal = assignDismissal(source, bowler, [], rng);
             striker.out = true;
             totalWkts += 1;
-            deliveries.push({ over: 1, ball, batter: striker.name, bowler: bowler.name, ...res });
+            deliveries.push({ over: 1, ball, batter: striker.name, bowler: bowler.name, ...res, dismissalType: dismissal.type, fielder: dismissal.fielder || null, creditedToBowler: dismissal.creditedToBowler });
             if (nextIn < battingCard.length) { strikerIdx = nextIn; nextIn += 1; }
             continue;
         }
@@ -410,8 +434,8 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     // The team batting first faces the other team's bowling rotation.
     const firstBowlingRotation = secondBattingTeam.id === teamA.id ? rotA : rotB;
     const secondBowlingRotation = firstBattingTeam.id === teamA.id ? rotA : rotB;
-    const inn1 = simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng);
-    const inn2 = simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns);
+    const inn1 = simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng, undefined, secondXI);
+    const inn2 = simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns, firstXI);
     let winnerId = null, margin = "";
     if (inn2.totalRuns > inn1.totalRuns) {
         winnerId = secondBattingTeam.id;
@@ -1121,7 +1145,7 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
     const dismissal = (b, innings) => {
         if (!b.out) return b.balls > 0 ? "not out" : "did not bat";
         const d = innings.deliveries.find(x => x.isWicket && x.batter === b.name);
-        return d ? `out — ${escapeHtml(d.bowler)}` : "out";
+        return escapeHtml(dismissalTextFromDelivery(d) || "out");
     };
 
     const inningsPage = (x, title) => `<section class="sc-page">
@@ -1135,7 +1159,7 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
         <section class="sc-section">
             <div class="sc-section-head">
                 <div><div class="sc-kicker">INNINGS</div><h2>${escapeHtml(title)}</h2></div>
-                <div class="sc-total">${x.totalRuns}/${x.totalWkts}<span> ${x.deliveries.length ? (x.deliveries.length / 6).toFixed(1) : "0.0"} ov</span></div>
+                <div class="sc-total">${x.totalRuns}/${x.totalWkts}<span> ${cricketOversFromBalls(x.deliveries.length)} ov</span></div>
             </div>
             <h3>Batting</h3>
             <table>
@@ -1151,13 +1175,14 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
             </table>
             <h3>Bowling</h3>
             <table>
-                <thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead>
+                <thead><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th><th>Overs Bowled</th></tr></thead>
                 <tbody>
                     ${x.bowlingCard.map(b => `<tr>
                         <td class="player">${escapeHtml(b.name)}</td>
-                        <td>${Math.floor(b.balls / 6)}.${b.balls % 6}</td>
-                        <td>${b.runs}</td><td>${b.wkts}</td>
+                        <td>${cricketOversFromBalls(b.balls)}</td>
+                        <td>${b.maidens||0}</td><td>${b.runs}</td><td>${b.wkts}</td>
                         <td>${b.balls ? (b.runs / (b.balls / 6)).toFixed(2) : "-"}</td>
+                        <td>${escapeHtml((b.overNumbers||b.overs||[]).join(", ") || "-")}</td>
                     </tr>`).join("")}
                 </tbody>
             </table>
@@ -1231,7 +1256,7 @@ function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCatego
     const verification=[...(result.verification?.teamA||[]),...(result.verification?.teamB||[])];
     const tossText=result.toss?.summary||"Toss not recorded";
     const matchLine=result.margin||`${teamAName} vs ${teamBName}`;
-    const safeDismissal=(x,b)=>{if(!b.out)return b.balls>0?"not out":"did not bat";const d=x.deliveries?.find(z=>z.isWicket&&z.batter===b.name);if(!d)return"out";if(d.dismissalType==="bowled")return`b ${d.bowler}`;if(d.dismissalType)return d.dismissalType;return"out";};
+    const safeDismissal=(x,b)=>{if(!b.out)return b.balls>0?"not out":"did not bat";const d=x.deliveries?.find(z=>z.isWicket&&z.batter===b.name);return dismissalTextFromDelivery(d)||"out";};
     const extrasText=x=>{const e=x.extrasBreakdown||{};const total=Number(x.extras??((e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0)));return`${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;};
     const header=(cmds)=>{
         pdfRect(cmds,40,708,515,116,[0.94,0.67,0.00]);pdfRect(cmds,300,708,255,116,[0.68,0.10,0.06]);
@@ -1280,7 +1305,7 @@ function VerificationTable({ verification, teamName }) {
 }
 function Scorecard({ innings, title }) {
     const tier = "See Tier Verification";
-    const dismissalText = (b) => { if (!b.out) return b.balls > 0 ? "not out" : "did not bat"; const d = innings.deliveries.find(x => x.isWicket && x.batter === b.name); if (!d) return "out"; return d.dismissalType === "bowled" ? `b ${d.bowler}` : d.dismissalType || "out"; };
+    const dismissalText = (b) => { if (!b.out) return b.balls > 0 ? "not out" : "did not bat"; const d = innings.deliveries.find(x => x.isWicket && x.batter === b.name); return dismissalTextFromDelivery(d) || "out"; };
     const partnershipRows = innings.partnerships?.map((p, i) => React.createElement("span", { key: i, style: { marginRight: 10 } }, i + 1, ": ", p.runs, " (", p.balls, "b)")) || [];
     const fowRows = innings.fallOfWickets?.map((f, i) => React.createElement("span", { key: i, style: { marginRight: 10 } }, f.wicket, "-", f.score, " (", f.batter, ", ", f.over, ")")) || [];
     const battingRows = innings.battingCard.map((b) => React.createElement("tr", { key: b.id, style: { borderTop: `1px solid ${C.lineSoft}` } },
