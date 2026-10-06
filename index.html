@@ -1201,137 +1201,69 @@ function buildScorecardExportHTML(result, teamAName, teamBName, pitchName, pitch
 }
 function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c])); }
 function pdfEscape(v) { return String(v ?? "").replace(/[^\x20-\x7E]/g, "?").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)"); }
-function pdfText(cmds, x, y, text, size = 9, bold = false) { cmds.push(`BT /F${bold ? 2 : 1} ${size} Tf ${x} ${y} Td (${pdfEscape(text)}) Tj ET`); }
-function pdfLine(cmds, x1, y1, x2, y2) { cmds.push(`${x1} ${y1} m ${x2} ${y2} l S`); }
+function pdfText(cmds, x, y, text, size = 9, bold = false, color = [0.12,0.18,0.28]) {
+    const [r,g,b]=color; cmds.push(`${r} ${g} ${b} rg BT /F${bold ? 2 : 1} ${size} Tf ${x} ${y} Td (${pdfEscape(text)}) Tj ET`);
+}
+function pdfRect(cmds,x,y,w,h,fill=[1,1,1],stroke=null,lw=1){
+    if(fill){ const [r,g,b]=fill; cmds.push(`${r} ${g} ${b} rg ${x} ${y} ${w} ${h} re f`); }
+    if(stroke){ const [r,g,b]=stroke; cmds.push(`${r} ${g} ${b} RG ${lw} w ${x} ${y} ${w} ${h} re S`); }
+}
+function pdfLine(cmds,x1,y1,x2,y2,color=[0.82,0.85,0.89],lw=0.6){const [r,g,b]=color;cmds.push(`${r} ${g} ${b} RG ${lw} w ${x1} ${y1} m ${x2} ${y2} l S`);}
 function makeScorecardPDF(pages) {
-    const objects = [];
-    const add = (body) => { objects.push(body); return objects.length; };
-    const font1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-    const font2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
-    const pageRefs = [];
-    pages.forEach((content) => {
-        const stream = content.join("\n");
-        const contentRef = add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-        const pageRef = add(`<< /Type /Page /Parent PAGES_REF /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${font1} 0 R /F2 ${font2} 0 R >> >> /Contents ${contentRef} 0 R >>`);
-        pageRefs.push(pageRef);
-    });
-    const pagesRef = add(`<< /Type /Pages /Kids [${pageRefs.map(r => `${r} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
-    const catalogRef = add(`<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
-    const finalObjects = objects.map(o => o.replace(/PAGES_REF/g, `${pagesRef} 0 R`));
-    let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-    const offsets = [0];
-    finalObjects.forEach((body, i) => { offsets.push(pdf.length); pdf += `${i + 1} 0 obj\n${body}\nendobj\n`; });
-    const xref = pdf.length;
-    pdf += `xref\n0 ${finalObjects.length + 1}\n0000000000 65535 f \n`;
-    for (let i = 1; i <= finalObjects.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-    pdf += `trailer\n<< /Size ${finalObjects.length + 1} /Root ${catalogRef} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-    return new Blob([pdf], { type: "application/pdf" });
+    const objects=[]; const add=body=>{objects.push(body);return objects.length;};
+    const font1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const font2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+    const pageRefs=[];
+    pages.forEach(content=>{const stream=content.join("\n");const cr=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);const pr=add(`<< /Type /Page /Parent PAGES_REF /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${font1} 0 R /F2 ${font2} 0 R >> >> /Contents ${cr} 0 R >>`);pageRefs.push(pr);});
+    const pagesRef=add(`<< /Type /Pages /Kids [${pageRefs.map(r=>`${r} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`);
+    const catalogRef=add(`<< /Type /Catalog /Pages ${pagesRef} 0 R >>`);
+    const finalObjects=objects.map(o=>o.replace(/PAGES_REF/g,`${pagesRef} 0 R`));
+    let pdf="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";const offsets=[0];
+    finalObjects.forEach((body,i)=>{offsets.push(pdf.length);pdf+=`${i+1} 0 obj\n${body}\nendobj\n`;});
+    const xref=pdf.length;pdf+=`xref\n0 ${finalObjects.length+1}\n0000000000 65535 f \n`;for(let i=1;i<=finalObjects.length;i++)pdf+=`${String(offsets[i]).padStart(10,"0")} 00000 n \n`;
+    pdf+=`trailer\n<< /Size ${finalObjects.length+1} /Root ${catalogRef} 0 R >>\nstartxref\n${xref}\n%%EOF`;return new Blob([pdf],{type:"application/pdf"});
 }
-function buildPDFPageHeader(cmds, title, subtitle) {
-    cmds.push("0.08 0.22 0.16 rg 0 0 595 842 re f", "0 0 0 rg");
-    pdfText(cmds, 40, 800, "T20 CRICKET LEAGUE", 9, true);
-    pdfText(cmds, 40, 778, title, 19, true);
-    pdfText(cmds, 40, 758, subtitle, 9, false);
-}
-function cricketOversFromBalls(balls) {
-    const n = Math.max(0, Number(balls) || 0);
-    return `${Math.floor(n / 6)}.${n % 6}`;
-}
-function cricketRR(runs, balls) {
-    const n = Number(balls) || 0;
-    return n ? (Number(runs || 0) / (n / 6)).toFixed(2) : "0.00";
-}
-function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated) {
-    const pages = [];
-    const verification = [...(result.verification?.teamA || []), ...(result.verification?.teamB || [])];
-    const tossText = result.toss?.summary || "Toss not recorded";
-    const matchLine = result.margin || `${teamAName} vs ${teamBName}`;
-    const inningsLabel = (x, fallback) => `${x?.teamName || fallback}`;
-    const teamNameForInnings = (x, fallbackId, fallbackName) => {
-        if (x?.teamName) return x.teamName;
-        if (x?.teamId === fallbackId) return fallbackName;
-        return fallbackName;
+function cricketOversFromBalls(balls){const n=Math.max(0,Number(balls)||0);return `${Math.floor(n/6)}.${n%6}`;}
+function cricketRR(runs,balls){const n=Number(balls)||0;return n?(Number(runs||0)/(n/6)).toFixed(2):"0.00";}
+function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName) {
+    const pages=[];
+    const navy=[0.08,0.13,0.22], text=[0.19,0.25,0.35], muted=[0.36,0.43,0.54], line=[0.86,0.88,0.91], green=[0.00,0.48,0.34], greenBg=[0.91,0.98,0.95], gold=[0.88,0.60,0.00], red=[0.65,0.08,0.07], orange=[0.82,0.30,0.03], white=[1,1,1], pale=[0.96,0.97,0.98];
+    const verification=[...(result.verification?.teamA||[]),...(result.verification?.teamB||[])];
+    const tossText=result.toss?.summary||"Toss not recorded";
+    const matchLine=result.margin||`${teamAName} vs ${teamBName}`;
+    const safeDismissal=(x,b)=>{if(!b.out)return b.balls>0?"not out":"did not bat";const d=x.deliveries?.find(z=>z.isWicket&&z.batter===b.name);if(!d)return"out";if(d.dismissalType==="bowled")return`b ${d.bowler}`;if(d.dismissalType)return d.dismissalType;return"out";};
+    const extrasText=x=>{const e=x.extrasBreakdown||{};const total=Number(x.extras??((e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0)));return`${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;};
+    const header=(cmds)=>{
+        pdfRect(cmds,40,708,515,116,[0.94,0.67,0.00]);pdfRect(cmds,300,708,255,116,[0.68,0.10,0.06]);
+        pdfRect(cmds,55,795,128,19,navy);pdfText(cmds,63,801,"T20 CRICKET LEAGUE · MATCH",7.5,true,white);
+        pdfText(cmds,55,762,`${teamAName} vs ${teamBName}`,17,true,white);
+        pdfLine(cmds,55,752,540,752,[0.94,0.82,0.55],0.5);
+        pdfText(cmds,55,734,"VENUE",6.5,true,white);pdfText(cmds,55,719,String(venueName||"Not specified").slice(0,38),7.5,false,white);
+        pdfText(cmds,230,734,"PITCH CONDITION",6.5,true,white);pdfText(cmds,230,719,`${pitchName||"Pitch"}${pitchCategory?` (${pitchCategory})`:""}`.slice(0,45),7.5,false,white);
+        pdfText(cmds,420,734,"TOSS",6.5,true,white);pdfText(cmds,420,719,String(tossText).replace(/^.*?won/i, m=>m).slice(0,25),7.5,false,white);
     };
-    const safeDismissal = (x, b) => {
-        if (!b.out) return b.balls > 0 ? "not out" : "did not bat";
-        const d = x.deliveries?.find(z => z.isWicket && z.batter === b.name);
-        if (!d) return "out";
-        if (d.dismissalType === "bowled") return `b ${d.bowler}`;
-        return d.dismissalType || "out";
-    };
-    const extrasText = (x) => {
-        if (x.extrasBreakdown) {
-            const e = x.extrasBreakdown;
-            const total = Number(x.extras ?? (e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0));
-            return `${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;
-        }
-        return String(x.extras ?? 0);
-    };
-    const addInnings = (cmds, x, battingTeam, bowlingTeam, yStart) => {
-        let y = yStart;
-        pdfText(cmds, 40, y, `${battingTeam}: ${x.totalRuns}/${x.totalWkts} (${cricketOversFromBalls(x.deliveries?.length || 0)} Overs, RR: ${cricketRR(x.totalRuns, x.deliveries?.length || 0)})`, 11, true); y -= 18;
-        pdfText(cmds, 40, y, `Batting — ${battingTeam}`, 9, true); y -= 15;
-        ["Batter","Dismissal","R","B","4s","6s","SR"].forEach((h,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],y,h,7,true));
-        pdfLine(cmds,40,y-5,555,y-5); y -= 18;
-        (x.battingCard || []).forEach(b=>{
-            const vals=[b.name,safeDismissal(x,b),b.runs,b.balls,b.fours,b.sixes,b.balls?((b.runs/b.balls)*100).toFixed(2):"-"];
-            vals.forEach((v,i)=>pdfText(cmds,[40,165,365,390,420,450,480][i],y,String(v).slice(0,i<2?29:8),7,i===0));
-            y -= 16;
-        });
-        const didNotBat=(x.battingCard||[]).filter(b=>!b.out && !b.balls).map(b=>b.name);
-        if (didNotBat.length) { y -= 2; pdfText(cmds,40,y,`Did not bat: ${didNotBat.join(", ")}`,7); y -= 14; }
-        pdfText(cmds,40,y,`Extras: ${extrasText(x)} · Total: ${x.totalRuns}/${x.totalWkts} (${cricketOversFromBalls(x.deliveries?.length || 0)} Overs, RR: ${cricketRR(x.totalRuns,x.deliveries?.length || 0)})`,7); y -= 17;
-        pdfText(cmds,40,y,`Fall of Wickets: ${(x.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} (${f.batter}, ${f.over} ov)`).join(", ") || "None"}`,7); y -= 18;
-        pdfText(cmds,40,y,`Bowling — ${bowlingTeam}`, 9, true); y -= 15;
-        ["Bowler","Overs","M","R","W","Econ","Overs Bowled"].forEach((h,i)=>pdfText(cmds,[40,205,255,290,325,365,420][i],y,h,7,true));
-        pdfLine(cmds,40,y-5,555,y-5); y -= 18;
-        (x.bowlingCard || []).forEach(b=>{
-            const overList = (b.overNumbers || b.overs || []).join(", ");
-            const vals=[b.name,cricketOversFromBalls(b.balls),b.maidens||0,b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):"-",overList || "-"];
-            vals.forEach((v,i)=>pdfText(cmds,[40,205,255,290,325,365,420][i],y,String(v).slice(0,22),7,i===0));
-            y -= 16;
-        });
-        if (y > 90) {
-            const ps=(x.partnerships||[]).map((p,i)=>`${i+1}: ${p.runs} runs (${p.balls} balls)`).join(" · ");
-            if (ps) { pdfText(cmds,40,y,"Partnerships",7,true); y-=12; pdfText(cmds,40,y,ps.slice(0,125),7); y-=15; }
-        }
-        return y;
-    };
-
-    // PAGE 1 — Match header + first innings.
-    const p1=[];
-    buildPDFPageHeader(p1, `${teamAName} vs ${teamBName}`, `T20 CRICKET LEAGUE · ${pitchName || "Pitch"}${pitchCategory ? ` · ${pitchCategory}` : ""}`);
-    pdfText(p1,40,742,`TOSS · ${tossText}`,8,true);
-    pdfText(p1,40,726,matchLine,9,true);
-    if (resimulated) pdfText(p1,40,712,"RESIMULATED MATCH · latest fixture result counts",7,true);
-    addInnings(p1,result.inn1,teamAName,teamBName,690);
-    pages.push(p1);
-
-    // PAGE 2 — Second innings, match details, then PLAYER TIER ANALYSIS as the final section.
-    const p2=[];
-    buildPDFPageHeader(p2, `${teamBName} innings`, `${teamAName} vs ${teamBName} · ${matchLine}`);
-    pdfText(p2,40,742,`TOSS · ${tossText}`,8,true);
-    let yy=724;
-    yy=addInnings(p2,result.inn2,teamBName,teamAName,yy)-18;
-    pdfText(p2,40,yy,`PLAYER OF THE MATCH · ${result.playerOfMatch?.name || "-"}`,9,true); yy-=18;
-    if (result.turningPoint) { pdfText(p2,40,yy,"TURNING POINT",9,true); yy-=14; pdfText(p2,40,yy,String(result.turningPoint).slice(0,125),7); yy-=22; }
-    if (result.superOver) { pdfText(p2,40,yy,"SUPER OVER",9,true); yy-=14; pdfText(p2,40,yy,`${teamAName}: ${result.superOver.inn1.totalRuns}/${result.superOver.inn1.totalWkts} · ${teamBName}: ${result.superOver.inn2.totalRuns}/${result.superOver.inn2.totalWkts}`,8,true); yy-=20; }
-    yy=Math.max(yy,245);
-    pdfText(p2,40,yy,"PLAYER TIER ANALYSIS",11,true); yy-=16;
-    pdfText(p2,40,yy,"Uploaded stats and the simulator's assigned tier",7); yy-=15;
-    ["Player","Role","Uploaded Stats","Game-Adjusted Stats","Assigned Tier"].forEach((h,i)=>pdfText(p2,[40,150,215,345,475][i],yy,h,7,true));
-    pdfLine(p2,40,yy-5,555,yy-5); yy-=17;
-    verification.forEach(v=>{
-        if (yy < 58) return;
-        const tier=v.bowl?.class?.archetype || v.batTier || "-";
-        const base=v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batBase.avg}${v.batBase.auto?" AUTO":""} / S ${v.batBase.sr}`;
-        const adjusted=v.bowl ? `E ${v.bowl.econ.toFixed(2)} S ${v.bowl.bowlSR.toFixed(1)} A ${v.bowl.bowlAvg.toFixed(1)}` : `A ${v.batAdjusted.avg.toFixed(2)} / S ${v.batAdjusted.sr.toFixed(2)}`;
-        [v.name,v.role,base,adjusted,tier].forEach((val,i)=>pdfText(p2,[40,150,215,345,475][i],yy,String(val).slice(0,i===0?24:18),7,i===0||i===4));
-        pdfLine(p2,40,yy-4,555,yy-4); yy-=18;
-    });
-    pdfText(p2,40,48,"AUTO = automatic tailender batting profile · HS is display/upload data only and does not affect simulation.",7);
-    pages.push(p2);
-    downloadBlob(makeScorecardPDF(pages), `${teamAName}-vs-${teamBName}-scorecard.pdf`);
+    const resultBox=(cmds,y)=>{pdfRect(cmds,40,y-48,515,48,greenBg,[0.45,0.78,0.65],0.8);pdfText(cmds,54,y-18,matchLine,10,true,green);pdfText(cmds,54,y-36,`${teamAName}: ${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} ov)  |  ${teamBName}: ${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} ov)`,7.5,false,green);};
+    const tableHeader=(cmds,y,label,total,color)=>{pdfText(cmds,40,y,label,10,true,color);pdfText(cmds,555-(String(total).length*5.3),y,String(total),9,true,text);pdfLine(cmds,40,y-9,555,y-9,line,1.2);};
+    const battingTable=(cmds,x,y,w,inn)=>{
+        pdfRect(cmds,x,y-19,w,19,navy);const cols=[x+7,x+145,x+w-165,x+w-125,x+w-87,x+w-50,x+w-25];["Batter","Dismissal","R","B","4s","6s","SR"].forEach((h,i)=>pdfText(cmds,cols[i],y-13,h,6.8,true,white));
+        let yy=y-35;(inn.battingCard||[]).forEach((b,i)=>{if(i%2===0)pdfRect(cmds,x,yy-5,w,20,pale);const vals=[b.name,safeDismissal(inn,b),b.runs,b.balls,b.fours,b.sixes,b.balls?((b.runs/b.balls)*100).toFixed(2):"-"];vals.forEach((v,j)=>pdfText(cmds,cols[j],yy,String(v).slice(0,j<2?26:8),6.7,j===0,text));yy-=20;});return yy;};
+    const bowlingTable=(cmds,x,y,w,inn,bowlingTeam)=>{pdfRect(cmds,x,y-19,w,19,navy);const cols=[x+7,x+200,x+250,x+290,x+330,x+370,x+410];[bowlingTeam+" Bowling","Overs","M","R","W","Econ","Overs Bowled"].forEach((h,i)=>pdfText(cmds,cols[i],y-13,h,6.7,true,white));let yy=y-35;(inn.bowlingCard||[]).forEach((b,i)=>{if(i%2===0)pdfRect(cmds,x,yy-5,w,20,pale);const overList=(b.overNumbers||b.overs||[]).join(", ");const vals=[b.name,cricketOversFromBalls(b.balls),b.maidens||0,b.runs,b.wkts,b.balls?(b.runs/(b.balls/6)).toFixed(2):"-",overList||"-"];const c=[cols[0],cols[1],cols[2],cols[3],cols[4],cols[5],cols[6]];vals.forEach((v,j)=>pdfText(cmds,c[j],yy,String(v).slice(0,24),6.7,j===0,text));yy-=20;});return yy;};
+    const inningsMeta=(cmds,x,y,w,inn)=>{const dnb=(inn.battingCard||[]).filter(b=>!b.out&&!b.balls).map(b=>b.name);pdfRect(cmds,x,y-25,w,25,[0.97,0.98,0.99],[0.84,0.87,0.91],0.6);pdfText(cmds,x+8,y-10,`Did not bat: ${dnb.join(", ")||"None"}`,6.5,true,muted);pdfRect(cmds,x,y-54,w,24,[0.94,0.96,0.98]);pdfText(cmds,x+8,y-47,`Extras: ${extrasText(inn)} · Total: ${inn.totalRuns}/${inn.totalWkts} (${cricketOversFromBalls(inn.deliveries?.length)} Overs, RR: ${cricketRR(inn.totalRuns,inn.deliveries?.length)})`,6.4,false,text);pdfRect(cmds,x,y-92,w,32,white,[0.84,0.87,0.91],0.6);pdfText(cmds,x+8,y-70,`Fall of Wickets: ${(inn.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} (${f.batter}, ${f.over} ov)`).join(", ")||"None"}`.slice(0,145),6.1,false,muted);return y-104;};
+    // PAGE 1: exact visual hierarchy of the supplied reference.
+    const p1=[];header(p1);resultBox(p1,690);
+    tableHeader(p1,625,`1st Innings: ${result.inn1.teamName||teamAName}`,`${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} Overs, RR: ${cricketRR(result.inn1.totalRuns,result.inn1.deliveries?.length)})`,red);
+    let y=601;y=battingTable(p1,40,y,515,result.inn1);y=inningsMeta(p1,40,y+5,515,result.inn1);y-=2;y=bowlingTable(p1,40,y,515,result.inn1,result.inn2.teamName||teamBName);
+    tableHeader(p1,y-8,`2nd Innings: ${result.inn2.teamName||teamBName}`,`${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} Overs, RR: ${cricketRR(result.inn2.totalRuns,result.inn2.deliveries?.length)})`,gold);
+    y-=34;const rows2=result.inn2.battingCard||[];const first2=rows2.slice(0,1);battingTable(p1,40,y,515,{...result.inn2,battingCard:first2});pdfText(p1,297,28,"Page 1 of 2",7,false,[0.55,0.63,0.74]);pages.push(p1);
+    // PAGE 2: continue second innings, then match highlights, then tier analysis LAST.
+    const p2=[];let y2=786;const remaining={...result.inn2,battingCard:rows2.slice(1)};y2=battingTable(p2,40,y2,515,remaining);y2=inningsMeta(p2,40,y2+5,515,result.inn2);y2-=2;y2=bowlingTable(p2,40,y2,515,result.inn2,result.inn1.teamName||teamAName);
+    y2-=20;pdfRect(p2,40,y2-58,515,58,white,[0.84,0.87,0.91],0.7);pdfText(p2,50,y2-18,"PLAYER OF THE MATCH",7.5,true,text);const pom=result.playerOfMatch?.name||"-";pdfRect(p2,168,y2-26,145,18,[1.0,0.94,0.73]);pdfText(p2,175,y2-20,pom,7.2,true,[0.55,0.30,0.00]);if(result.turningPoint){pdfText(p2,50,y2-40,"TURNING POINT:",7,true,text);pdfText(p2,118,y2-40,String(result.turningPoint).slice(0,120),6.3,false,text);}y2-=70;
+    pdfText(p2,40,y2,"PLAYER TIER ANALYSIS",11,true,text);pdfLine(p2,40,y2-8,555,y2-8,line,1);y2-=24;
+    const tierRows=verification.slice(0,22);const half=Math.ceil(tierRows.length/2);const drawTierCol=(items,x,w)=>{let yy=y2;items.forEach((v,i)=>{if(i%2===0)pdfRect(p2,x,yy-4,w,17,pale);const tier=v.bowl?.class?.archetype||v.batTier||"-";const stats=v.bowl?`E ${v.bowl.econ.toFixed(1)} / SR ${v.bowl.bowlSR.toFixed(1)} / A ${v.bowl.bowlAvg.toFixed(1)}`:`A ${v.batBase.avg}${v.batBase.auto?" AUTO":""} / SR ${v.batBase.sr}`;pdfText(p2,x+5,yy,v.name.slice(0,18),6.2,true,text);pdfText(p2,x+104,yy,stats.slice(0,25),5.7,false,muted);pdfText(p2,x+w-72,yy,tier.slice(0,12),5.7,true,[0.58,0.35,0.00]);yy-=18;});};
+    pdfRect(p2,40,y2-18,515,18,navy);pdfText(p2,46,y2-12,"PLAYER",6.2,true,white);pdfText(p2,144,y2-12,"STATS",6.2,true,white);pdfText(p2,272,y2-12,"TIER",6.2,true,white);pdfText(p2,305,y2-12,"PLAYER",6.2,true,white);pdfText(p2,403,y2-12,"STATS",6.2,true,white);pdfText(p2,531,y2-12,"TIER",6.2,true,white);y2-=34;
+    drawTierCol(tierRows.slice(0,half),40,245);drawTierCol(tierRows.slice(half),305,250);
+    pdfText(p2,40,28,"PLAYER TIER ANALYSIS",7,true,muted);pdfText(p2,480,28,"Page 2 of 2",7,false,[0.55,0.63,0.74]);pages.push(p2);
+    downloadBlob(makeScorecardPDF(pages),`${teamAName}-vs-${teamBName}-scorecard.pdf`);
 }
 function exportScorecardJPEG(result, teamAName, teamBName) {
     const html = buildScorecardExportHTML(result, teamAName, teamBName);
@@ -1515,7 +1447,7 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId))), style: btn },
+                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified"), style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save / Print PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
