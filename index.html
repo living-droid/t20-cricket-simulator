@@ -434,8 +434,8 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     // The team batting first faces the other team's bowling rotation.
     const firstBowlingRotation = secondBattingTeam.id === teamA.id ? rotA : rotB;
     const secondBowlingRotation = firstBattingTeam.id === teamA.id ? rotA : rotB;
-    const inn1 = simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng, undefined, secondXI);
-    const inn2 = simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns, firstXI);
+    const inn1 = { ...simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng, undefined, secondXI), teamName: firstBattingTeam.name, teamId: firstBattingTeam.id };
+    const inn2 = { ...simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns, firstXI), teamName: secondBattingTeam.name, teamId: secondBattingTeam.id };
     let winnerId = null, margin = "";
     if (inn2.totalRuns > inn1.totalRuns) {
         winnerId = secondBattingTeam.id;
@@ -555,14 +555,8 @@ const EMPTY_DATA = { players: [], pitches: [], teams: [], matches: [], tournamen
 async function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-            const parsed = { ...EMPTY_DATA, ...JSON.parse(raw) };
-            parsed.teams = (parsed.teams || []).map((t) => ({
-                ...t,
-                color: (!t.color || String(t.color).toUpperCase() === "#1D6B47") ? "#64748B" : t.color
-            }));
-            return parsed;
-        }
+        if (raw)
+            return { ...EMPTY_DATA, ...JSON.parse(raw) };
         return EMPTY_DATA;
     }
     catch (e) {
@@ -779,7 +773,7 @@ function mergeImportedData(data, parsed) {
         if (!team) {
             if (teams.length >= 10)
                 return;
-            team = { id: nid("t"), name: sourceTeam.name, color: "#64748B", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+            team = { id: nid("t"), name: sourceTeam.name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
             teams.push(team);
             teamByName.set(sourceTeam.name.toLowerCase(), team);
         }
@@ -1018,7 +1012,7 @@ function TeamsTab({ data, update }) {
     const addTeam = () => {
         if (!name.trim() || data.teams.length >= 10)
             return;
-        const t = { id: nid("t"), name, color: "#64748B", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
+        const t = { id: nid("t"), name, color: "#1D6B47", squad: [], xiOrder: [], groundName: "", homeGroundId: "", bowlingRotation: {} };
         update({ ...data, teams: [...data.teams, t] });
         setName("");
         setEditingId(t.id);
@@ -1048,7 +1042,6 @@ function TeamsTab({ data, update }) {
                 React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
                     React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 8 } },
                         React.createElement(ChevronRight, { size: 13, color: C.textFaint }),
-                        React.createElement("span", { style: { width: 11, height: 11, borderRadius: "50%", background: t.color || "#64748B", border: `1px solid ${C.line}`, display: "inline-block", flexShrink: 0 } }),
                         React.createElement("span", { style: { fontWeight: 700 } }, t.name),
                         React.createElement(Badge, { color: t.xiOrder.length === 11 ? C.accent2 : C.textFaint },
                             t.xiOrder.length,
@@ -1064,9 +1057,9 @@ function TeamsTab({ data, update }) {
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
                     "Team Color"),
                 React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-                    React.createElement("input", { type: "color", value: editing.color || "#64748B", onChange: (e) => updateTeam(editing.id, { color: e.target.value }), style: { width: 44, height: 34, padding: 2, borderRadius: 7, border: `1px solid ${C.line}`, background: C.panel, cursor: "pointer" } }),
-                    React.createElement("span", { style: { fontSize: 11, color: C.textDim, fontFamily: mono } }, (editing.color || "#64748B").toUpperCase()),
-                    React.createElement("span", { style: { width: 14, height: 14, borderRadius: 50, background: editing.color || "#64748B", border: `1px solid ${C.line}`, display: "inline-block" } })
+                    React.createElement("input", { type: "color", value: editing.color || "#1D6B47", onChange: (e) => updateTeam(editing.id, { color: e.target.value }), style: { width: 44, height: 34, padding: 2, borderRadius: 7, border: `1px solid ${C.line}`, background: C.panel, cursor: "pointer" } }),
+                    React.createElement("span", { style: { fontSize: 11, color: C.textDim, fontFamily: mono } }, (editing.color || "#1D6B47").toUpperCase()),
+                    React.createElement("span", { style: { width: 14, height: 14, borderRadius: 50, background: editing.color || "#1D6B47", border: `1px solid ${C.line}`, display: "inline-block" } })
                 )),
             React.createElement("div", { style: { background: C.panelAlt, borderRadius: 9, padding: 14, marginBottom: 16, border: `1px solid ${C.lineSoft}` } },
                 React.createElement("div", { style: { ...eyebrow, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 } },
@@ -1275,7 +1268,7 @@ function makeScorecardPDF(pages) {
 }
 function cricketOversFromBalls(balls){const n=Math.max(0,Number(balls)||0);return `${Math.floor(n/6)}.${n%6}`;}
 function cricketRR(runs,balls){const n=Number(balls)||0;return n?(Number(runs||0)/(n/6)).toFixed(2):"0.00";}
-function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName, teamAColor="#64748B", teamBColor="#64748B") {
+function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCategory, resimulated, venueName, teamAColor="#1D6B47", teamBColor="#B34A3C") {
     const pages=[];
     const navy=[0.08,0.13,0.22], text=[0.19,0.25,0.35], muted=[0.36,0.43,0.54], line=[0.86,0.88,0.91], green=[0.00,0.48,0.34], greenBg=[0.91,0.98,0.95], gold=[0.88,0.60,0.00], red=[0.65,0.08,0.07], orange=[0.82,0.30,0.03], white=[1,1,1], pale=[0.96,0.97,0.98];
     const teamAHeader=hexToPdfColor(teamAColor, gold);
@@ -1284,7 +1277,9 @@ function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCatego
     const teamBText=pdfTextColorFor(teamBHeader);
     const verification=[...(result.verification?.teamA||[]),...(result.verification?.teamB||[])];
     const tossText=result.toss?.summary||"Toss not recorded";
-    const matchLine=result.margin||`${teamAName} vs ${teamBName}`;
+    const actualInn1Name=result.inn1.teamName||teamAName;
+    const actualInn2Name=result.inn2.teamName||teamBName;
+    const matchLine=result.margin||`${actualInn1Name} vs ${actualInn2Name}`;
     const safeDismissal=(x,b)=>{if(!b.out)return b.balls>0?"not out":"did not bat";const d=x.deliveries?.find(z=>z.isWicket&&z.batter===b.name);return dismissalTextFromDelivery(d)||"out";};
     const extrasText=x=>{const e=x.extrasBreakdown||{};const total=Number(x.extras??((e.wd||0)+(e.nb||0)+(e.lb||0)+(e.b||0)));return`${total} (wd ${e.wd||0}, nb ${e.nb||0}, lb ${e.lb||0}, b ${e.b||0})`;};
     const header=(cmds)=>{
@@ -1300,7 +1295,7 @@ function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCatego
         if(!tossL2 && tossL1.length>21){ tossL2=tossL1.slice(21).trim(); tossL1=tossL1.slice(0,21).trim(); }
         pdfText(cmds,420,719,tossL1,6.8,false,teamBText); if(tossL2) pdfText(cmds,420,709,tossL2,6.8,false,teamBText);
     };
-    const resultBox=(cmds,y)=>{pdfRect(cmds,40,y-48,515,48,greenBg,[0.45,0.78,0.65],0.8);pdfText(cmds,54,y-18,matchLine,10,true,green);pdfText(cmds,54,y-36,`${teamAName}: ${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} ov)  |  ${teamBName}: ${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} ov)`,7.5,false,green);};
+    const resultBox=(cmds,y)=>{pdfRect(cmds,40,y-48,515,48,greenBg,[0.45,0.78,0.65],0.8);pdfText(cmds,54,y-18,matchLine,10,true,green);pdfText(cmds,54,y-36,`${actualInn1Name}: ${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} ov)  |  ${actualInn2Name}: ${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} ov)`,7.5,false,green);};
     const tableHeader=(cmds,y,label,total,color)=>{pdfText(cmds,40,y,label,10,true,color);pdfText(cmds,555-(String(total).length*5.3),y,String(total),9,true,text);pdfLine(cmds,40,y-9,555,y-9,line,1.2);};
     const battingTable=(cmds,x,y,w,inn)=>{
         pdfRect(cmds,x,y-19,w,19,navy);const cols=[x+7,x+145,x+w-165,x+w-125,x+w-87,x+w-50,x+w-25];["Batter","Dismissal","R","B","4s","6s","SR"].forEach((h,i)=>pdfText(cmds,cols[i],y-13,h,6.8,true,white));
@@ -1309,12 +1304,12 @@ function exportScorecardPDF(result, teamAName, teamBName, pitchName, pitchCatego
     const inningsMeta=(cmds,x,y,w,inn)=>{const dnb=(inn.battingCard||[]).filter(b=>!b.out&&!b.balls).map(b=>b.name);pdfRect(cmds,x,y-25,w,25,[0.97,0.98,0.99],[0.84,0.87,0.91],0.6);pdfText(cmds,x+8,y-10,`Did not bat: ${dnb.join(", ")||"None"}`,6.5,true,muted);pdfRect(cmds,x,y-54,w,24,[0.94,0.96,0.98]);pdfText(cmds,x+8,y-47,`Extras: ${extrasText(inn)} · Total: ${inn.totalRuns}/${inn.totalWkts} (${cricketOversFromBalls(inn.deliveries?.length)} Overs, RR: ${cricketRR(inn.totalRuns,inn.deliveries?.length)})`,6.4,false,text);pdfRect(cmds,x,y-92,w,32,white,[0.84,0.87,0.91],0.6);pdfText(cmds,x+8,y-70,`Fall of Wickets: ${(inn.fallOfWickets||[]).map(f=>`${f.wicket}-${f.score} (${f.batter}, ${f.over} ov)`).join(", ")||"None"}`.slice(0,145),6.1,false,muted);return y-104;};
     // PAGE 1: exact visual hierarchy of the supplied reference.
     const p1=[];header(p1);resultBox(p1,690);
-    tableHeader(p1,625,`1st Innings: ${result.inn1.teamName||teamAName}`,`${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} Overs, RR: ${cricketRR(result.inn1.totalRuns,result.inn1.deliveries?.length)})`,red);
-    let y=601;y=battingTable(p1,40,y,515,result.inn1);y=inningsMeta(p1,40,y+5,515,result.inn1);y-=2;y=bowlingTable(p1,40,y,515,result.inn1,result.inn2.teamName||teamBName);
-    tableHeader(p1,y-8,`2nd Innings: ${result.inn2.teamName||teamBName}`,`${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} Overs, RR: ${cricketRR(result.inn2.totalRuns,result.inn2.deliveries?.length)})`,gold);
+    tableHeader(p1,625,`1st Innings: ${actualInn1Name}`,`${result.inn1.totalRuns}/${result.inn1.totalWkts} (${cricketOversFromBalls(result.inn1.deliveries?.length)} Overs, RR: ${cricketRR(result.inn1.totalRuns,result.inn1.deliveries?.length)})`,red);
+    let y=601;y=battingTable(p1,40,y,515,result.inn1);y=inningsMeta(p1,40,y+5,515,result.inn1);y-=2;y=bowlingTable(p1,40,y,515,result.inn1,actualInn2Name);
+    tableHeader(p1,y-8,`2nd Innings: ${actualInn2Name}`,`${result.inn2.totalRuns}/${result.inn2.totalWkts} (${cricketOversFromBalls(result.inn2.deliveries?.length)} Overs, RR: ${cricketRR(result.inn2.totalRuns,result.inn2.deliveries?.length)})`,gold);
     y-=34;const rows2=result.inn2.battingCard||[];const first2=rows2.slice(0,1);battingTable(p1,40,y,515,{...result.inn2,battingCard:first2});pdfText(p1,297,28,"Page 1 of 2",7,false,[0.55,0.63,0.74]);pages.push(p1);
     // PAGE 2: continue second innings, then match highlights, then tier analysis LAST.
-    const p2=[];let y2=786;const remaining={...result.inn2,battingCard:rows2.slice(1)};y2=battingTable(p2,40,y2,515,remaining);y2=inningsMeta(p2,40,y2+5,515,result.inn2);y2-=2;y2=bowlingTable(p2,40,y2,515,result.inn2,result.inn1.teamName||teamAName);
+    const p2=[];let y2=786;const remaining={...result.inn2,battingCard:rows2.slice(1)};y2=battingTable(p2,40,y2,515,remaining);y2=inningsMeta(p2,40,y2+5,515,result.inn2);y2-=2;y2=bowlingTable(p2,40,y2,515,result.inn2,actualInn1Name);
     y2-=20;pdfRect(p2,40,y2-58,515,58,white,[0.84,0.87,0.91],0.7);pdfText(p2,50,y2-18,"PLAYER OF THE MATCH",7.5,true,text);const pom=result.playerOfMatch?.name||"-";pdfRect(p2,168,y2-26,145,18,[1.0,0.94,0.73]);pdfText(p2,175,y2-20,pom,7.2,true,[0.55,0.30,0.00]);if(result.turningPoint){pdfText(p2,50,y2-40,"TURNING POINT:",7,true,text);pdfText(p2,118,y2-40,String(result.turningPoint).slice(0,120),6.3,false,text);}y2-=70;
     pdfText(p2,40,y2,"PLAYER TIER ANALYSIS",11,true,text);pdfLine(p2,40,y2-8,555,y2-8,line,1);y2-=24;
     const tierRows=verification.slice(0,22);const half=Math.ceil(tierRows.length/2);const drawTierCol=(items,x,w)=>{let yy=y2;items.forEach((v,i)=>{if(i%2===0)pdfRect(p2,x,yy-4,w,17,pale);const tier=v.bowl?.class?.archetype||v.batTier||"-";const stats=v.bowl?`E ${v.bowl.econ.toFixed(1)} / SR ${v.bowl.bowlSR.toFixed(1)} / A ${v.bowl.bowlAvg.toFixed(1)}`:`A ${v.batBase.avg}${v.batBase.auto?" AUTO":""} / SR ${v.batBase.sr}`;pdfText(p2,x+5,yy,v.name.slice(0,18),6.2,true,text);pdfText(p2,x+104,yy,stats.slice(0,25),5.7,false,muted);pdfText(p2,x+w-72,yy,tier.slice(0,12),5.7,true,[0.58,0.35,0.00]);yy-=18;});};
@@ -1505,7 +1500,7 @@ function PlayMatchTab({ data, update, prefill }) {
             React.createElement(VerificationTable, { verification: result.verification.teamA, teamName: teamA.name }),
             React.createElement(VerificationTable, { verification: result.verification.teamB, teamName: teamB.name }),
             React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
-                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified", teamA.color || "#64748B", teamB.color || "#64748B"), style: btn },
+                React.createElement("button", { className: "no-print", onClick: () => exportScorecardPDF(result, teamA.name, teamB.name, pitch.name, pitch.category, !!(prefill?.fixtureId && data.matches.some((m) => m.fixtureId === prefill.fixtureId)), teamA.groundName || teamB.groundName || "Venue not specified", teamA.color || "#1D6B47", teamB.color || "#B34A3C"), style: btn },
                     React.createElement(FileText, { size: 13, style: { verticalAlign: -2, marginRight: 5 } }),
                     "Save / Print PDF"),
                 React.createElement("button", { className: "no-print", onClick: () => exportScorecardJPEG(result, teamA.name, teamB.name), style: btn },
@@ -1992,7 +1987,7 @@ function HistoryTab({ data }) {
         data.matches.length === 0 && React.createElement(EmptyState, { icon: Clock, text: "No matches played yet." }),
         data.matches.map((m) => (React.createElement("div", { key: m.id, style: { padding: "11px 4px", borderBottom: `1px solid ${C.lineSoft}`, fontSize: 12.5 } },
             React.createElement("div", { style: { fontWeight: 600 } },
-                m.teamAName,
+                m.inn1?.teamName || (m.inn1TeamId === m.teamAId ? m.teamAName : m.teamBName),
                 " ",
                 m.inn1.totalRuns,
                 "/",
@@ -2000,7 +1995,7 @@ function HistoryTab({ data }) {
                 " ",
                 React.createElement("span", { style: { color: C.textFaint, fontWeight: 400 } }, "vs"),
                 " ",
-                m.teamBName,
+                m.inn2?.teamName || (m.inn2TeamId === m.teamAId ? m.teamAName : m.teamBName),
                 " ",
                 m.inn2.totalRuns,
                 "/",
