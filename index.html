@@ -178,18 +178,43 @@ function pitchAdjustedProfile(p, pitch) {
     }
     return { avg: avg * avgMod, sr: sr * srMod, avgMod, srMod };
 }
+function getBowlingStyle(p) {
+    const type = String(p?.bowlingType || "").toLowerCase();
+    if (/spin/.test(type)) return "spin";
+    if (/fast|pace|medium|seam/.test(type)) return "pace";
+    return p?.isSpin ? "spin" : "pace";
+}
 function pitchAdjustedBowlerProfile(p, pitch) {
-    const isSpin = p.bowlingType ? /spin/i.test(p.bowlingType) : !!p.isSpin;
+    const style = getBowlingStyle(p);
+    const isSpin = style === "spin";
     const pacePitch = pitch.category === "green" || pitch.category === "hard";
     const spinPitch = pitch.category === "dry";
     let effectiveness = 1;
-    if (isSpin && spinPitch)
-        effectiveness = 1.10;
-    else if (isSpin && pacePitch)
-        effectiveness = 0.90;
-    else if (!isSpin && pacePitch)
-        effectiveness = 1.10;
-    return { econ: Number(p.econ), bowlSR: Number(p.bowlSR), bowlAvg: Number(p.bowlAvg), effectiveness, isSpin };
+    if (isSpin && spinPitch) effectiveness = 1.10;
+    else if (isSpin && pacePitch) effectiveness = 0.90;
+    else if (!isSpin && pacePitch) effectiveness = 1.10;
+    // Custom pitch sliders add a modest, bounded effect on top of the curated pitch type.
+    const spinHelp = (Number(pitch.spinAssistance ?? 50) - 50) / 1000;
+    const paceHelp = ((Number(pitch.paceAssistance ?? 50) - 50) + (Number(pitch.seamMovement ?? 50) - 50) * 0.6) / 1000;
+    effectiveness *= 1 + (isSpin ? spinHelp : paceHelp);
+    effectiveness = Math.max(0.85, Math.min(1.15, effectiveness));
+    return { econ: Number(p.econ), bowlSR: Number(p.bowlSR), bowlAvg: Number(p.bowlAvg), effectiveness, isSpin, style };
+}
+function applyPitchConditions(v, pitch) {
+    // Slider values are normalized around 50 (neutral). These are environment effects,
+    // not edits to the player's saved/master statistics.
+    const boundary = (Number(pitch.boundaryPercentage ?? 50) - 50) / 100;
+    const outfield = (Number(pitch.outfieldSpeed ?? 50) - 50) / 100;
+    const scoring = (Number(pitch.avgScoreTendency ?? 50) - 50) / 100;
+    const bounce = (Number(pitch.bounce ?? 50) - 50) / 100;
+    const seam = (Number(pitch.seamMovement ?? 50) - 50) / 100;
+    let { wicket, dot, rotate, four, six } = v;
+    four *= Math.max(0.65, 1 + boundary * 0.65 + outfield * 0.30 + scoring * 0.18);
+    six *= Math.max(0.70, 1 + boundary * 0.85 + bounce * 0.10 + scoring * 0.20);
+    rotate *= Math.max(0.75, 1 + outfield * 0.10 + scoring * 0.12);
+    dot *= Math.max(0.75, 1 - outfield * 0.12 - scoring * 0.15);
+    wicket *= Math.max(0.80, 1 + seam * 0.14 + Math.abs(bounce) * 0.04 - scoring * 0.05);
+    return renormalize(vec(wicket, dot, rotate, four, six));
 }
 function getPreMatchVerification(xi, pitch) {
     return xi.map((p) => {
@@ -229,7 +254,7 @@ function resolveDelivery(v, rng) {
 function assignDismissal(striker, bowler, fieldingXI, rng) {
     const fielders = (fieldingXI || []).filter(p => p && p.id !== bowler.id && p.id !== striker.id);
     const keeper = fielders.find(p => p.isWK) || null;
-    const isSpin = /spin/i.test(String(bowler.bowlingType || ""));
+    const isSpin = getBowlingStyle(bowler) === "spin";
     const r = rng();
     if (isSpin && keeper && r < 0.12) return { type: "stumped", fielder: keeper.name, creditedToBowler: true };
     if (r < 0.42) return { type: "caught", fielder: (fielders[0] || keeper || bowler).name, creditedToBowler: true };
@@ -254,6 +279,7 @@ function simulateBall(batter, bowler, pitch, over, rng) {
     const { o: bowlBase } = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
     const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
     let combined = blend(batVec, bowlVec);
+    combined = applyPitchConditions(combined, pitch);
     combined = applyPhase(combined, over);
     return resolveDelivery(combined, rng);
 }
@@ -435,7 +461,7 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
     const firstBowlingRotation = secondBattingTeam.id === teamA.id ? rotA : rotB;
     const secondBowlingRotation = firstBattingTeam.id === teamA.id ? rotA : rotB;
     const inn1 = { ...simulateInnings(firstXI, firstBowlingRotation, playerLookup, pitch, rng, undefined, secondXI), teamName: firstBattingTeam.name, teamId: firstBattingTeam.id };
-    const inn2 = { ...simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns, firstXI), teamName: secondBattingTeam.name, teamId: secondBattingTeam.id };
+    const inn2 = { ...simulateInnings(secondXI, secondBowlingRotation, playerLookup, pitch, rng, inn1.totalRuns + 1, firstXI), teamName: secondBattingTeam.name, teamId: secondBattingTeam.id };
     let winnerId = null, margin = "";
     if (inn2.totalRuns > inn1.totalRuns) {
         winnerId = secondBattingTeam.id;
@@ -457,7 +483,7 @@ function playMatch(teamA, teamB, pitch, rotA, rotB, playerLookup) {
         let attempts = 0;
         do {
             const so1 = simulateSuperOver(firstXI, bowlerFirst, pitch, rng);
-            const so2 = simulateSuperOver(secondXI, bowlerSecond, pitch, rng, so1.totalRuns);
+            const so2 = simulateSuperOver(secondXI, bowlerSecond, pitch, rng, so1.totalRuns + 1);
             superOver = { inn1: so1, inn2: so2, inn1TeamId: firstBattingTeam.id, inn2TeamId: secondBattingTeam.id };
             attempts += 1;
             if (so1.totalRuns !== so2.totalRuns) break;
@@ -1413,8 +1439,8 @@ function PlayMatchTab({ data, update, prefill }) {
     }, [teamBId]);
     const pitch = data.pitches.find((p) => p.id === pitchId) || data.pitches[0];
     const playerLookup = Object.fromEntries(data.players.map((p) => [p.id, p]));
-    const bowlersA = teamA ? teamA.squad.map((id) => playerLookup[id]).filter((p) => p && p.isBowler) : [];
-    const bowlersB = teamB ? teamB.squad.map((id) => playerLookup[id]).filter((p) => p && p.isBowler) : [];
+    const bowlersA = teamA ? teamA.xiOrder.map((id) => playerLookup[id]).filter((p) => p && p.isBowler) : [];
+    const bowlersB = teamB ? teamB.xiOrder.map((id) => playerLookup[id]).filter((p) => p && p.isBowler) : [];
     const sim = () => {
         if (!teamA || !teamB || !pitch)
             return;
