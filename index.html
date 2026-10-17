@@ -126,30 +126,12 @@ function applyPhase(v, over) {
 }
 const signal = (x) => (x - 50) / 50;
 function classifyBowlerForPitch(economy, sr, avg, pitch) {
-    const base = classifyBowler(economy, sr, avg);
-    // The matrix explicitly calls for one Economy Tier UP on Spin / Green tracks,
-    // while retaining the bowler's combined SR & Avg efficiency tier.
-    if (!(pitch.category === "dry" || pitch.category === "green"))
-        return base;
-    const tiers = [6.5, 7.5, 8.5, 9.5, Infinity];
-    let tierIndex = tiers.findIndex((x, i) => economy < x && (i === 0 || economy >= tiers[i - 1]));
-    if (tierIndex < 0)
-        tierIndex = tiers.length - 1;
-    const betterTier = Math.max(0, tierIndex - 1);
-    const max = tiers[betterTier];
-    const pool = BOWLER_ARCHETYPES.filter((b) => b.econMax === max);
-    const candidates = pool.length ? pool : BOWLER_ARCHETYPES;
-    let best = candidates[0], bestDist = Infinity;
-    for (const b of candidates) {
-        const srMid = Number.isFinite((b.srMin + b.srMax) / 2) ? (b.srMin + b.srMax) / 2 : sr;
-        const avgMid = Number.isFinite((b.avgMin + b.avgMax) / 2) ? (b.avgMin + b.avgMax) / 2 : avg;
-        const d = Math.abs(sr - srMid) / 10 + Math.abs(avg - avgMid) / 10;
-        if (d < bestDist) {
-            bestDist = d;
-            best = b;
-        }
-    }
-    return { archetype: `${best.name} (pitch tier)`, o: best.o };
+    // Keep the source-defined player-stat matrix classification intact on every pitch.
+    // Pitch suitability is applied separately by pitchAdjustedBowlerProfile(), which
+    // uses the player's bowling type (spin vs pace) and the selected pitch conditions.
+    // This prevents every bowler from receiving an automatic economy-tier upgrade
+    // simply because the pitch is green or dry.
+    return classifyBowler(economy, sr, avg);
 }
 function getBattingProfile(p) {
     const suppliedAvg = Number(p.avg);
@@ -200,9 +182,10 @@ function pitchAdjustedBowlerProfile(p, pitch) {
     effectiveness = Math.max(0.85, Math.min(1.15, effectiveness));
     return { econ: Number(p.econ), bowlSR: Number(p.bowlSR), bowlAvg: Number(p.bowlAvg), effectiveness, isSpin, style };
 }
-function applyPitchConditions(v, pitch) {
+function applyPitchConditions(v, pitch, bowlingStyle) {
     // Slider values are normalized around 50 (neutral). These are environment effects,
-    // not edits to the player's saved/master statistics.
+    // not edits to the player's saved/master statistics. Seam movement mainly helps pace;
+    // it must not give every spinner the same automatic wicket boost on a green pitch.
     const boundary = (Number(pitch.boundaryPercentage ?? 50) - 50) / 100;
     const outfield = (Number(pitch.outfieldSpeed ?? 50) - 50) / 100;
     const scoring = (Number(pitch.avgScoreTendency ?? 50) - 50) / 100;
@@ -213,7 +196,9 @@ function applyPitchConditions(v, pitch) {
     six *= Math.max(0.70, 1 + boundary * 0.85 + bounce * 0.10 + scoring * 0.20);
     rotate *= Math.max(0.75, 1 + outfield * 0.10 + scoring * 0.12);
     dot *= Math.max(0.75, 1 - outfield * 0.12 - scoring * 0.15);
-    wicket *= Math.max(0.80, 1 + seam * 0.14 + Math.abs(bounce) * 0.04 - scoring * 0.05);
+    const paceSpecificSeam = bowlingStyle === "pace" ? seam * 0.14 : 0;
+    const styleSpecificBounce = bowlingStyle === "pace" ? Math.abs(bounce) * 0.04 : Math.abs(bounce) * 0.015;
+    wicket *= Math.max(0.80, 1 + paceSpecificSeam + styleSpecificBounce - scoring * 0.05);
     return renormalize(vec(wicket, dot, rotate, four, six));
 }
 function getPreMatchVerification(xi, pitch) {
@@ -306,7 +291,7 @@ function simulateBall(batter, bowler, pitch, over, rng) {
 
     const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
     let combined = blend(batVec, bowlVec);
-    combined = applyPitchConditions(combined, pitch);
+    combined = applyPitchConditions(combined, pitch, bowlStats.style);
     combined = applyPhase(combined, over);
     return resolveDelivery(combined, rng);
 }
