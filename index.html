@@ -276,7 +276,34 @@ function simulateBall(batter, bowler, pitch, over, rng) {
     const batStats = pitchAdjustedProfile(batter, pitch);
     const { o: batVec } = classifyBatsman(batStats.sr, batStats.avg);
     const bowlStats = pitchAdjustedBowlerProfile(bowler, pitch);
-    const { o: bowlBase } = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
+    const bowlClass = classifyBowlerForPitch(bowlStats.econ, bowlStats.bowlSR, bowlStats.bowlAvg, pitch);
+    let bowlBase = bowlClass.o;
+
+    // Minimal wicket calibration: retain the existing matrix tier and outcome mix,
+    // but let the supplied bowling SR and average affect wicket probability within that tier.
+    const matrixName = String(bowlClass.archetype).replace(/ \(pitch tier\)| \(nearest\)/g, "");
+    const matrixRow = BOWLER_ARCHETYPES.find((row) => row.name === matrixName);
+    if (matrixRow && bowlStats.bowlSR > 0 && bowlStats.bowlAvg > 0) {
+        const expectedEconomy = matrixRow.econMin === -Infinity ? 5.90
+            : matrixRow.econMin === 6.5 ? 6.60
+            : matrixRow.econMin === 7.5 ? 7.64
+            : matrixRow.econMin === 8.5 ? 8.92
+            : 10.24;
+        const expectedSR = 100 / matrixRow.o.wicket;
+        const expectedAvg = expectedEconomy * expectedSR / 6;
+        const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+        const srFactor = clamp(expectedSR / bowlStats.bowlSR, 0.75, 1.5);
+        const avgFactor = clamp(expectedAvg / bowlStats.bowlAvg, 0.75, 1.5);
+        const wicketFactor = clamp(Math.sqrt(srFactor * avgFactor), 0.75, 1.5);
+        bowlBase = renormalize(vec(
+            bowlBase.wicket * wicketFactor,
+            bowlBase.dot,
+            bowlBase.rotate,
+            bowlBase.four,
+            bowlBase.six
+        ));
+    }
+
     const bowlVec = bowlStats.effectiveness === 1 ? bowlBase : renormalize(vec(bowlBase.wicket * bowlStats.effectiveness, bowlBase.dot * bowlStats.effectiveness, bowlBase.rotate, bowlBase.four / bowlStats.effectiveness, bowlBase.six / bowlStats.effectiveness));
     let combined = blend(batVec, bowlVec);
     combined = applyPitchConditions(combined, pitch);
